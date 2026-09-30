@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="/vendor/xlsx.full.min.js"></script>
 <script src="/vendor/jszip.min.js"></script>
 <style>
   :root{
@@ -71,6 +71,18 @@
   #scanReader{flex:1; width:100%; overflow:hidden;}
   #scanReader video{width:100% !important; height:100% !important; object-fit:cover;}
   .scanner-hint{color:#ddd; text-align:center; font-size:13px; padding:12px 16px 22px; line-height:1.6;}
+  .install-card{
+    background:#FFF7F1; border:1px solid #F0CDB9; border-radius:12px; padding:12px; margin-bottom:12px;
+    font-size:13px; line-height:1.7; display:none;
+  }
+  .install-card.show{display:block;}
+  .install-card b{font-weight:700;}
+  .install-actions{display:flex; gap:8px; margin-top:10px;}
+  .install-actions button{
+    border:none; border-radius:8px; padding:8px 12px; font-family:inherit; font-weight:600; font-size:13px; cursor:pointer;
+  }
+  .install-actions .primary{background:var(--tag); color:#fff;}
+  .install-actions .ghost{background:transparent; color:var(--ink-soft); border:1px solid var(--line);}
   .backup-note{font-size:12px; color:var(--ink-soft); line-height:1.6; margin-top:10px;}
   .search-input{
     flex:1; border:1px solid var(--line); background:var(--card);
@@ -299,6 +311,13 @@
 </header>
 
 <main>
+  <div class="install-card" id="installCard">
+    <div id="installText"></div>
+    <div class="install-actions">
+      <button type="button" class="primary" id="installBtn" style="display:none;">تثبيت التطبيق</button>
+      <button type="button" class="ghost" id="installLater">لاحقًا</button>
+    </div>
+  </div>
   <div id="listWrap"></div>
   <div class="empty-state" id="emptyState" style="display:none;">
     <div class="big">لا توجد أصول مسجّلة بعد</div>
@@ -479,6 +498,7 @@
     <div class="info-row"><span>تنتهي الرخصة</span><span id="acc_expiry" class="mono">—</span></div>
     <div class="info-row"><span>الذكاء الاصطناعي</span><span id="acc_ai">—</span></div>
     <div class="info-row"><span>آخر تحقق من الخادم</span><span id="acc_checked" class="mono">—</span></div>
+    <div class="info-row"><span>حماية البيانات على الجهاز</span><span id="acc_storage">—</span></div>
     <div class="photo-hint" style="margin-top:14px;">
       يعمل التطبيق دون إنترنت حتى تاريخ <b id="acc_grace" class="mono">—</b>. اتصل بالإنترنت قبل هذا التاريخ ليتجدد التحقق تلقائيًا.
       بيانات الجرد والصور محفوظة على هذا الجهاز فقط؛ صدّرها قبل تسجيل الخروج أو تغيير الجهاز.
@@ -1024,6 +1044,63 @@ $('labelInput').addEventListener('change', async (e)=>{
   }
 });
 
+// ---------- Data protection: persistent storage + home-screen install ----------
+// Browsers (Safari especially) may clear site data that is not "persistent", e.g. after 7 days unused.
+// Installed home-screen apps and granted persistent storage are kept.
+let storagePersisted = null;
+let deferredInstall = null;
+const INSTALL_SNOOZE_KEY = 'ai_install_snooze_v1';
+const isStandalone = ()=> window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+const isIOS = ()=> /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
+async function ensurePersistentStorage(){
+  try{
+    if(!navigator.storage || !navigator.storage.persist) { storagePersisted = null; return; }
+    storagePersisted = await navigator.storage.persisted();
+    if(!storagePersisted) storagePersisted = await navigator.storage.persist();
+  }catch{ storagePersisted = null; }
+}
+
+window.addEventListener('beforeinstallprompt', (e)=>{
+  e.preventDefault();
+  deferredInstall = e;
+  renderInstallCard();
+});
+window.addEventListener('appinstalled', ()=>{ deferredInstall = null; renderInstallCard(); });
+
+function renderInstallCard(){
+  const card = $('installCard');
+  const snoozed = Number(lsGet(INSTALL_SNOOZE_KEY) || 0) > Date.now();
+  if(!session || isStandalone() || snoozed){ card.classList.remove('show'); return; }
+  let html;
+  if(isIOS()){
+    html = '<b>لحماية بياناتك:</b> قد يحذف Safari بيانات الجرد إذا لم يُفتح الموقع أسبوعًا. اضغط زر المشاركة <b>⬆︎</b> ثم <b>«إضافة إلى الشاشة الرئيسية»</b>، واعمل دائمًا من أيقونة التطبيق.';
+    if(assets.length) html += '<br><b>مهم:</b> التطبيق المُضاف لا يرى بيانات Safari. صدّر ما سجلته الآن، ثم افتح التطبيق من الأيقونة وسجّل الدخول واستعد الملف من ⚙.';
+    $('installBtn').style.display = 'none';
+  } else if(deferredInstall){
+    html = '<b>ثبّت التطبيق على هاتفك</b> ليفتح من أيقونة ويعمل دون إنترنت، وتبقى بياناتك محمية من الحذف التلقائي.';
+    $('installBtn').style.display = 'inline-block';
+  } else if(storagePersisted === true){
+    card.classList.remove('show'); return;
+  } else {
+    html = '<b>لحماية بياناتك:</b> من قائمة المتصفح <b>⋮</b> اختر <b>«إضافة إلى الشاشة الرئيسية»</b> أو «تثبيت التطبيق»، واعمل دائمًا من أيقونته.';
+    $('installBtn').style.display = 'none';
+  }
+  $('installText').innerHTML = html;
+  card.classList.add('show');
+}
+$('installBtn').addEventListener('click', async ()=>{
+  if(!deferredInstall) return;
+  deferredInstall.prompt();
+  try{ await deferredInstall.userChoice; }catch{}
+  deferredInstall = null;
+  renderInstallCard();
+});
+$('installLater').addEventListener('click', ()=>{
+  lsSet(INSTALL_SNOOZE_KEY, Date.now() + 3 * 86400000);
+  renderInstallCard();
+});
+
 // ---------- Backup reminder ----------
 let backupMsg = '';
 async function updateBackupState(){
@@ -1129,6 +1206,8 @@ async function enterApp(){
   renderLicenseBanner();
   await refreshList($('searchBox').value);
   await loadLocationBar();
+  await ensurePersistentStorage();
+  renderInstallCard();
 }
 
 async function doLogout(message){
@@ -1137,6 +1216,7 @@ async function doLogout(message){
   if(db){ try{ db.close(); }catch{} db = null; }
   document.querySelectorAll('.sheet.open').forEach(s=> s.classList.remove('open'));
   $('listWrap').innerHTML = '';
+  $('installCard').classList.remove('show');
   showLogin(message);
 }
 
@@ -1207,6 +1287,7 @@ function fillAccount(){
   $('acc_ai').textContent = L.aiEnabled ? 'مفعّل' : 'غير مفعّل';
   $('acc_checked').textContent = fmtDate(session.lastCheck);
   $('acc_grace').textContent = fmtDate(p.exp);
+  $('acc_storage').textContent = isStandalone() || storagePersisted === true ? 'مفعّلة' : 'غير مضمونة — أضف التطبيق للشاشة الرئيسية';
   getSetting('lastBackupAt').then(v=> $('acc_backup').textContent = v ? new Date(Number(v)).toLocaleString('en-GB') : 'لم يتم بعد');
 }
 $('settingsBtn').addEventListener('click', ()=>{ fillAccount(); $('settingsSheet').classList.add('open'); });

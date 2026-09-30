@@ -171,7 +171,8 @@ async function call(action, extra={}){
     body: JSON.stringify({action, ...extra})
   });
   let d = {}; try{ d = await r.json(); }catch{}
-  if(r.status === 401){ signOut('انتهت الجلسة أو كلمة المرور غير صحيحة'); }
+  if(r.status === 401){ signOut('كلمة مرور الإدارة غير صحيحة'); }
+  if(r.status === 429){ signOut(d.message || 'محاولات خاطئة كثيرة. حاول لاحقًا'); }
   return d;
 }
 

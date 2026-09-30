@@ -1,11 +1,11 @@
 // Offline support: the app shell and libraries are cached so the app opens without internet.
-const CACHE = 'asset-inv-v2';
+const CACHE = 'asset-inv-v3';
 const SHELL = [
   '/',
   '/index.html',
   '/manifest.webmanifest',
   '/icon.svg',
-  'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js',
+  '/vendor/xlsx.full.min.js',
   '/vendor/jszip.min.js',
   '/vendor/html5-qrcode.min.js'
 ];

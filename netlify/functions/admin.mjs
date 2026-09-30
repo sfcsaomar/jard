@@ -13,6 +13,14 @@ function isAdmin(req) {
   return crypto.timingSafeEqual(a, b);
 }
 
+// Brute-force protection: 5 wrong admin passwords from one address lock it for 30 minutes.
+const ADMIN_MAX_FAILS = 5;
+const ADMIN_LOCK_MIN = 30;
+function clientKey(req, context) {
+  const ip = context?.ip || req.headers.get('x-nf-client-connection-ip') || req.headers.get('x-forwarded-for') || 'unknown';
+  return 'adminlocks/' + crypto.createHash('sha256').update(String(ip).split(',')[0].trim()).digest('hex').slice(0, 32);
+}
+
 async function listPrefix(prefix) {
   const { blobs } = await store().list({ prefix });
   const out = [];
@@ -104,9 +112,22 @@ const actions = {
   }
 };
 
-export default async (req) => {
+export default async (req, context) => {
   if (req.method !== 'POST') return err(405, 'method', 'Method not allowed');
-  if (!isAdmin(req)) return err(401, 'not_admin', 'كلمة مرور الإدارة غير صحيحة');
+  const lockKey = clientKey(req, context);
+  const lock = (await getJSON(lockKey)) || { count: 0 };
+  if (lock.until && lock.until > Date.now()) {
+    const min = Math.ceil((lock.until - Date.now()) / 60000);
+    return err(429, 'admin_locked', `محاولات خاطئة كثيرة. حاول بعد ${min} دقيقة`);
+  }
+  if (!isAdmin(req)) {
+    lock.count = (lock.count || 0) + 1;
+    if (lock.count >= ADMIN_MAX_FAILS) { lock.until = Date.now() + ADMIN_LOCK_MIN * 60000; lock.count = 0; }
+    await setJSON(lockKey, lock);
+    await new Promise((r) => setTimeout(r, 400));
+    return err(401, 'not_admin', 'كلمة مرور الإدارة غير صحيحة');
+  }
+  if (lock.count) await store().delete(lockKey);
   const body = await readBody(req);
   const fn = actions[body.action];
   if (!fn) return err(400, 'bad_action', 'Unknown action');
