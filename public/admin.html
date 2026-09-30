@@ -185,7 +185,7 @@ function signOut(msg){
 
 $('loginForm').addEventListener('submit', async (e)=>{
   e.preventDefault();
-  adminKey = $('adminPass').value;
+  adminKey = $('adminPass').value.trim();
   const d = await call('overview');
   if(d.ok){
     $('adminPass').value = '';

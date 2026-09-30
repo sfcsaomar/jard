@@ -5,8 +5,8 @@ import {
 } from '../lib/common.mjs';
 
 function isAdmin(req) {
-  const expected = process.env.ADMIN_PASSWORD || '';
-  const given = req.headers.get('x-admin-key') || '';
+  const expected = (process.env.ADMIN_PASSWORD || '').trim();
+  const given = (req.headers.get('x-admin-key') || '').trim(); // tolerate spaces from copy-paste
   if (expected.length < 10) return false;
   const a = crypto.createHash('sha256').update(given).digest();
   const b = crypto.createHash('sha256').update(expected).digest();
@@ -18,7 +18,7 @@ const ADMIN_MAX_FAILS = 5;
 const ADMIN_LOCK_MIN = 30;
 function clientKey(req, context) {
   const ip = context?.ip || req.headers.get('x-nf-client-connection-ip') || req.headers.get('x-forwarded-for') || 'unknown';
-  return 'adminlocks/' + crypto.createHash('sha256').update(String(ip).split(',')[0].trim()).digest('hex').slice(0, 32);
+  return 'adminlocks-v2/' + crypto.createHash('sha256').update(String(ip).split(',')[0].trim()).digest('hex').slice(0, 32);
 }
 
 async function listPrefix(prefix) {
