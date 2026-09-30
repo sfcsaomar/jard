@@ -1,6 +1,18 @@
 import { err, json, readBody, bearer, verifyToken, loadActive, getJSON, setJSON, usageKey } from '../lib/common.mjs';
 
 const PROMPT = 'هذه صورة قطعة أثاث أو تجهيزات مكتبية ضمن عملية جرد أصول. اكتب وصفاً موجزاً بالعربية (جملة واحدة، أقل من ١٥ كلمة) يذكر نوع القطعة، اللون أو الخامة الظاهرة، وأي تفاصيل مميزة. أعد الوصف فقط بدون أي مقدمة أو علامات اقتباس.';
+const LABEL_PROMPT = 'This is a photo of an equipment nameplate, rating label, or sticker, taken during a fixed-asset inventory. Extract the manufacturer/brand, the model number, and the serial number exactly as printed (keep letters, digits, dashes and case as shown; the serial is usually marked S/N, SN, Serial No, or SER). Leave a field empty if it is not clearly visible. Do not guess. Reply with JSON only, no other text: {"brand":"","model":"","sn":""}';
+
+function parseLabel(text) {
+  const m = String(text || '').match(/\{[\s\S]*\}/);
+  if (!m) return { brand: '', model: '', sn: '' };
+  try {
+    const o = JSON.parse(m[0]);
+    const clean = (v) => String(v ?? '').trim().slice(0, 80);
+    return { brand: clean(o.brand), model: clean(o.model), sn: clean(o.sn) };
+  } catch { return { brand: '', model: '', sn: '' }; }
+}
+
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 
 export default async (req) => {
@@ -13,7 +25,8 @@ export default async (req) => {
   const { license } = res;
   if (license.aiEnabled === false) return err(403, 'ai_disabled', 'ميزة الذكاء الاصطناعي غير مفعّلة في رخصتك');
 
-  const { image, mediaType } = await readBody(req);
+  const { image, mediaType, mode } = await readBody(req);
+  const isLabel = mode === 'label';
   if (!image || typeof image !== 'string') return err(400, 'no_image', 'لا توجد صورة');
   if (image.length > 4_000_000) return err(413, 'too_large', 'الصورة كبيرة جدًا');
   const type = ALLOWED_TYPES.includes(mediaType) ? mediaType : 'image/jpeg';
@@ -33,10 +46,10 @@ export default async (req) => {
     headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
     body: JSON.stringify({
       model: process.env.AI_MODEL || 'claude-haiku-4-5-20251001',
-      max_tokens: 150,
+      max_tokens: isLabel ? 200 : 150,
       messages: [{ role: 'user', content: [
         { type: 'image', source: { type: 'base64', media_type: type, data: image } },
-        { type: 'text', text: PROMPT }
+        { type: 'text', text: isLabel ? LABEL_PROMPT : PROMPT }
       ] }]
     })
   });
@@ -52,7 +65,9 @@ export default async (req) => {
   usage.outputTokens = (usage.outputTokens || 0) + (data.usage?.output_tokens || 0);
   await setJSON(uKey, usage);
 
-  return json(200, { ok: true, text, remaining: cap > 0 ? cap - usage.count : null });
+  const remaining = cap > 0 ? cap - usage.count : null;
+  if (isLabel) return json(200, { ok: true, fields: parseLabel(text), remaining });
+  return json(200, { ok: true, text, remaining });
 };
 
 export const config = { path: '/api/ai-describe' };

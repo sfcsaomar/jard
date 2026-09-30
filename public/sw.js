@@ -1,12 +1,13 @@
 // Offline support: the app shell and libraries are cached so the app opens without internet.
-const CACHE = 'asset-inv-v1';
+const CACHE = 'asset-inv-v2';
 const SHELL = [
   '/',
   '/index.html',
   '/manifest.webmanifest',
   '/icon.svg',
   'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js',
-  'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js'
+  '/vendor/jszip.min.js',
+  '/vendor/html5-qrcode.min.js'
 ];
 
 self.addEventListener('install', (e) => {

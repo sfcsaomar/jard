@@ -12,7 +12,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="/vendor/jszip.min.js"></script>
 <style>
   :root{
     --bg:#F5F3EF;
@@ -50,6 +50,28 @@
   }
   .count-pill b{color:var(--ink); font-weight:600;}
   .search-row{margin-top:10px; display:flex; gap:8px;}
+  .scan-btn{
+    flex-shrink:0; width:46px; border:1px solid var(--line); background:var(--card); border-radius:10px;
+    font-size:19px; cursor:pointer; color:var(--ink); display:flex; align-items:center; justify-content:center;
+  }
+  .dup-warn{font-size:12.5px; color:var(--warn); margin-top:6px; line-height:1.6; display:none;}
+  .dup-warn.show{display:block;}
+  .dup-warn a{color:var(--warn); font-weight:600; text-decoration:underline; cursor:pointer;}
+  .copy-prev{
+    background:none; border:1px solid var(--line); border-radius:8px; padding:6px 10px;
+    font-size:12.5px; font-family:inherit; font-weight:600; color:var(--ink); cursor:pointer;
+  }
+  .label-row{display:flex; gap:10px; align-items:center; margin-bottom:16px;}
+  .label-thumb{width:56px; height:56px; border-radius:8px; object-fit:cover; border:1px solid var(--line); flex-shrink:0; display:none;}
+  .label-row .btn-ai{margin-top:0;}
+  .scanner{position:fixed; inset:0; background:#000; z-index:400; display:none; flex-direction:column;}
+  .scanner.open{display:flex;}
+  .scanner-top{display:flex; justify-content:space-between; align-items:center; padding:14px 16px; color:#fff;}
+  .scanner-top .icon-btn{color:#fff;}
+  #scanReader{flex:1; width:100%; overflow:hidden;}
+  #scanReader video{width:100% !important; height:100% !important; object-fit:cover;}
+  .scanner-hint{color:#ddd; text-align:center; font-size:13px; padding:12px 16px 22px; line-height:1.6;}
+  .backup-note{font-size:12px; color:var(--ink-soft); line-height:1.6; margin-top:10px;}
   .search-input{
     flex:1; border:1px solid var(--line); background:var(--card);
     border-radius:10px; padding:10px 12px; font-size:14px; font-family:inherit;
@@ -268,6 +290,7 @@
   <div class="lic-banner" id="licBanner"></div>
   <div class="search-row">
     <input class="search-input" id="searchBox" type="text" placeholder="ابحث برقم الأصل أو الاسم...">
+    <button class="scan-btn" id="scanSearchBtn" title="امسح باركود للبحث" aria-label="مسح باركود للبحث"><svg width="22" height="18" viewBox="0 0 22 18" aria-hidden="true"><g fill="currentColor"><rect x="1" y="1" width="2" height="16"/><rect x="5" y="1" width="1" height="16"/><rect x="8" y="1" width="3" height="16"/><rect x="13" y="1" width="1" height="16"/><rect x="16" y="1" width="2" height="16"/><rect x="20" y="1" width="1" height="16"/></g></svg></button>
   </div>
   <div class="location-bar">
     <div class="loc-text" id="locText">لا يوجد موقع محدد</div>
@@ -293,7 +316,7 @@
   <div class="sheet-header">
     <button class="icon-btn" id="closeFormBtn">✕</button>
     <div class="sheet-title" id="formTitle">أصل جديد</div>
-    <span style="width:30px;"></span>
+    <button type="button" class="copy-prev" id="copyPrevBtn" title="نسخ البيانات من آخر أصل">نسخ السابق</button>
   </div>
   <div class="sheet-body">
 
@@ -301,8 +324,10 @@
       <label>رقم الأصل</label>
       <div class="tag-input-row">
         <input type="text" id="f_tag" class="mono" placeholder="مثال: A-0012" inputmode="text">
-        <button class="btn-next" id="nextTagBtn">التالي</button>
+        <button type="button" class="scan-btn" id="scanTagBtn" title="امسح الباركود" aria-label="مسح الباركود"><svg width="22" height="18" viewBox="0 0 22 18" aria-hidden="true"><g fill="currentColor"><rect x="1" y="1" width="2" height="16"/><rect x="5" y="1" width="1" height="16"/><rect x="8" y="1" width="3" height="16"/><rect x="13" y="1" width="1" height="16"/><rect x="16" y="1" width="2" height="16"/><rect x="20" y="1" width="1" height="16"/></g></svg></button>
+        <button type="button" class="btn-next" id="nextTagBtn">التالي</button>
       </div>
+      <div class="dup-warn" id="dupWarn"></div>
     </div>
 
     <div class="field">
@@ -357,6 +382,10 @@
       <span class="arrow">⌄</span>
     </div>
     <div class="more-fields" id="moreFields">
+      <div class="label-row">
+        <img class="label-thumb" id="labelThumb" alt="">
+        <button type="button" class="btn-ai" id="labelReadBtn">📷 صوّر لوحة البيانات لقراءة الماركة والموديل والرقم التسلسلي</button>
+      </div>
       <div class="field two-col">
         <div>
           <label>كود الفئة</label>
@@ -454,6 +483,14 @@
       يعمل التطبيق دون إنترنت حتى تاريخ <b id="acc_grace" class="mono">—</b>. اتصل بالإنترنت قبل هذا التاريخ ليتجدد التحقق تلقائيًا.
       بيانات الجرد والصور محفوظة على هذا الجهاز فقط؛ صدّرها قبل تسجيل الخروج أو تغيير الجهاز.
     </div>
+    <div class="field" style="margin-top:22px;">
+      <label>النسخ الاحتياطي</label>
+      <button type="button" class="btn btn-secondary btn-block" id="restoreBtn">استعادة من ملف تصدير سابق</button>
+      <div class="backup-note">
+        ملف «تصدير (Excel + صور)» هو نفسه النسخة الاحتياطية: احتفظ به، ويمكنك استعادته على هذا الجهاز أو أي جهاز آخر. الأصول الموجودة مسبقًا لا تتكرر عند الاستعادة.
+        <br>آخر تصدير: <b id="acc_backup" class="mono">—</b>
+      </div>
+    </div>
   </div>
   <div class="sheet-footer">
     <button class="btn btn-secondary" id="checkNowBtn">تحقق الآن</button>
@@ -463,6 +500,18 @@
 
 <!-- hidden camera inputs -->
 <input type="file" accept="image/*" capture="environment" id="cameraInput" style="display:none;">
+<input type="file" accept="image/*" capture="environment" id="labelInput" style="display:none;">
+<input type="file" accept=".zip,application/zip" id="restoreInput" style="display:none;">
+
+<div class="scanner" id="scanner">
+  <div class="scanner-top">
+    <button class="icon-btn" id="closeScanBtn">✕</button>
+    <div style="font-weight:600;">مسح الباركود</div>
+    <span style="width:30px;"></span>
+  </div>
+  <div id="scanReader"></div>
+  <div class="scanner-hint" id="scanHint">وجّه الكاميرا إلى الباركود وأبقِ الهاتف ثابتًا</div>
+</div>
 
 <div class="toast" id="toast"></div>
 
@@ -546,6 +595,7 @@ let assets = [];
 let currentEditId = null;
 let currentPhotos = [null, null, null, null]; // Blobs
 let currentCondition = '';
+let currentLabel = null; // nameplate photo (Blob)
 
 const $ = (id)=> document.getElementById(id);
 
@@ -569,6 +619,7 @@ async function refreshList(filter=''){
   );
 
   $('emptyState').style.display = (assets.length === 0) ? 'block' : 'none';
+  updateBackupState();
 
   filtered.forEach(a=>{
     const card = document.createElement('div');
@@ -626,14 +677,34 @@ function captureForSlot(idx){
   captureSlotIndex = idx;
   $('cameraInput').click();
 }
-$('cameraInput').addEventListener('change', (e)=>{
+// Phone photos are 4-8 MB each; shrink them on capture so storage and exports stay small.
+function compressPhoto(blob, maxSide=1600, quality=0.8){
+  return new Promise((resolve)=>{
+    const url = URL.createObjectURL(blob);
+    const img = new Image();
+    img.onload = ()=>{
+      const scale = Math.min(1, maxSide / Math.max(img.width, img.height));
+      const c = document.createElement('canvas');
+      c.width = Math.round(img.width * scale);
+      c.height = Math.round(img.height * scale);
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(url);
+      c.toBlob((out)=> resolve(out && out.size < blob.size ? out : blob), 'image/jpeg', quality);
+    };
+    img.onerror = ()=>{ URL.revokeObjectURL(url); resolve(blob); };
+    img.src = url;
+  });
+}
+
+$('cameraInput').addEventListener('change', async (e)=>{
   const file = e.target.files[0];
-  if(file && captureSlotIndex !== null){
-    currentPhotos[captureSlotIndex] = file;
+  const idx = captureSlotIndex;
+  e.target.value = '';
+  if(file && idx !== null){
+    currentPhotos[idx] = await compressPhoto(file);
     renderPhotoGrid();
     updateAiButtonState();
   }
-  e.target.value = '';
 });
 
 function openLightbox(url){
@@ -693,8 +764,10 @@ async function openForm(id=null){
     $('f_value').value = a.value || '';
     $('f_notes').value = a.notes || '';
     a.photos.forEach((p,i)=>{ if(i<4) currentPhotos[i] = p; });
+    currentLabel = a.labelPhoto || null;
     setCondition(a.condition || '');
     $('deleteLink').style.display = 'block';
+    $('copyPrevBtn').style.visibility = 'hidden';
   } else {
     $('formTitle').textContent = 'أصل جديد';
     $('f_tag').value = '';
@@ -711,10 +784,15 @@ async function openForm(id=null){
     $('f_plateno').value = '';
     $('f_value').value = '';
     $('f_notes').value = '';
+    currentLabel = null;
     setCondition('');
     $('deleteLink').style.display = 'none';
+    $('copyPrevBtn').style.visibility = assets.length ? 'visible' : 'hidden';
     await nextTagNumber();
   }
+  renderLabel();
+  checkDuplicate();
+  if(id && (a_hasMore(id))){ $('moreToggle').classList.add('open'); $('moreFields').classList.add('open'); }
   renderPhotoGrid();
   updateAiButtonState();
   $('formSheet').classList.add('open');
@@ -737,6 +815,10 @@ $('saveBtn').addEventListener('click', async ()=>{
     toast('أضف صورة واحدة على الأقل');
     return;
   }
+  const dup = findDuplicate(tag);
+  if(dup && !confirm(`رقم الأصل ${tag} مسجّل مسبقًا (${dup.name || 'بدون اسم'}). هل تريد الحفظ رغم التكرار؟`)){
+    return;
+  }
   const asset = {
     tag,
     category: $('f_category').value,
@@ -754,10 +836,12 @@ $('saveBtn').addEventListener('click', async ()=>{
     notes: $('f_notes').value.trim(),
     value: $('f_value').value.trim(),
     photos: currentPhotos,
+    labelPhoto: currentLabel,
     createdAt: currentEditId ? (assets.find(a=>a.id===currentEditId)?.createdAt || Date.now()) : Date.now()
   };
   if(currentEditId){ asset.id = currentEditId; }
   await dbPut(asset);
+  await setSetting('lastChangeAt', Date.now());
   closeForm();
   await refreshList($('searchBox').value);
   toast('تم الحفظ');
@@ -767,6 +851,7 @@ $('deleteLink').addEventListener('click', async ()=>{
   if(!currentEditId) return;
   if(confirm('هل تريد حذف هذا الأصل نهائياً؟')){
     await dbDelete(currentEditId);
+    await setSetting('lastChangeAt', Date.now());
     closeForm();
     await refreshList($('searchBox').value);
     toast('تم الحذف');
@@ -774,6 +859,184 @@ $('deleteLink').addEventListener('click', async ()=>{
 });
 
 $('searchBox').addEventListener('input', (e)=> refreshList(e.target.value));
+
+// ---------- More details helper ----------
+function a_hasMore(id){
+  const a = assets.find(x=>x.id===id);
+  return !!(a && (a.brand || a.model || a.sn || a.labelPhoto || a.plateNo || a.catCode));
+}
+
+// ---------- Duplicate barcode ----------
+const normTag = (t)=> String(t || '').trim().toLowerCase();
+function findDuplicate(tag){
+  const t = normTag(tag);
+  if(!t) return null;
+  return assets.find(a => normTag(a.tag) === t && a.id !== currentEditId) || null;
+}
+function checkDuplicate(){
+  const dup = findDuplicate($('f_tag').value);
+  const el = $('dupWarn');
+  if(dup){
+    el.innerHTML = `هذا الرقم مسجّل مسبقًا: ${escapeHtml(dup.name || 'بدون اسم')}${dup.location ? ' · ' + escapeHtml(dup.location) : ''} — <a id="openDupLink">فتح الأصل</a>`;
+    el.classList.add('show');
+    $('openDupLink').addEventListener('click', ()=> openForm(dup.id));
+  } else {
+    el.classList.remove('show');
+    el.innerHTML = '';
+  }
+}
+$('f_tag').addEventListener('input', checkDuplicate);
+$('nextTagBtn').addEventListener('click', ()=> setTimeout(checkDuplicate, 50));
+
+// ---------- Copy from previous asset ----------
+$('copyPrevBtn').addEventListener('click', ()=>{
+  const prev = assets[0];
+  if(!prev){ toast('لا يوجد أصل سابق'); return; }
+  $('f_category').value = prev.category || '';
+  $('f_catcode').value = prev.catCode || '';
+  $('f_subcat').value = prev.subCategory || '';
+  $('f_subcatcode').value = prev.subCategoryCode || '';
+  $('f_name').value = prev.name || '';
+  $('f_brand').value = prev.brand || '';
+  $('f_model').value = prev.model || '';
+  $('f_value').value = prev.value || '';
+  setCondition(prev.condition || '');
+  toast(`تم نسخ بيانات ${prev.tag} — امسح الرقم وصوّر فقط`);
+});
+
+// ---------- Barcode scanner ----------
+let scanner = null;
+let scanCallback = null;
+function loadScript(src){
+  return new Promise((resolve, reject)=>{
+    if(document.querySelector(`script[src="${src}"]`) && window.Html5Qrcode) return resolve();
+    const el = document.createElement('script');
+    el.src = src; el.onload = resolve; el.onerror = reject;
+    document.head.appendChild(el);
+  });
+}
+async function openScanner(onResult){
+  scanCallback = onResult;
+  try{
+    await loadScript('/vendor/html5-qrcode.min.js');
+  }catch{
+    toast('تعذّر تحميل الماسح. افتح التطبيق مرة مع الإنترنت');
+    return;
+  }
+  $('scanner').classList.add('open');
+  $('scanHint').textContent = 'وجّه الكاميرا إلى الباركود وأبقِ الهاتف ثابتًا';
+  const F = Html5QrcodeSupportedFormats;
+  scanner = new Html5Qrcode('scanReader', {
+    verbose: false,
+    formatsToSupport: [F.CODE_128, F.CODE_39, F.CODE_93, F.EAN_13, F.EAN_8, F.UPC_A, F.UPC_E, F.ITF, F.CODABAR, F.QR_CODE, F.DATA_MATRIX],
+    experimentalFeatures: { useBarCodeDetectorIfSupported: true }
+  });
+  try{
+    await scanner.start(
+      { facingMode: 'environment' },
+      { fps: 12 },  // scan the whole frame: a fixed box crops long 1D barcodes
+      (text)=> onScanned(text),
+      ()=>{}
+    );
+  }catch(err){
+    console.error(err);
+    await closeScanner();
+    toast('لا يمكن فتح الكاميرا. تأكد من السماح للتطبيق باستخدامها');
+  }
+}
+async function closeScanner(){
+  $('scanner').classList.remove('open');
+  if(scanner){
+    try{ if(scanner.isScanning) await scanner.stop(); }catch{}
+    try{ scanner.clear(); }catch{}
+    scanner = null;
+  }
+}
+async function onScanned(text){
+  const value = String(text || '').trim();
+  if(!value || !scanCallback) return;
+  const cb = scanCallback;
+  scanCallback = null;
+  if(navigator.vibrate) navigator.vibrate(60);
+  await closeScanner();
+  cb(value);
+}
+$('closeScanBtn').addEventListener('click', ()=>{ scanCallback = null; closeScanner(); });
+
+$('scanTagBtn').addEventListener('click', ()=> openScanner((code)=>{
+  $('f_tag').value = code;
+  checkDuplicate();
+  toast('تمت قراءة الباركود');
+}));
+
+$('scanSearchBtn').addEventListener('click', ()=> openScanner(async (code)=>{
+  const found = assets.find(a => normTag(a.tag) === normTag(code));
+  if(found){ openForm(found.id); return; }
+  if(confirm(`الرقم ${code} غير مسجّل. إضافة أصل جديد بهذا الرقم؟`)){
+    await openForm(null);
+    $('f_tag').value = code;
+    checkDuplicate();
+  }
+}));
+
+// ---------- Nameplate reading ----------
+function renderLabel(){
+  const img = $('labelThumb');
+  if(currentLabel){
+    const url = URL.createObjectURL(currentLabel);
+    img.src = url; img.style.display = 'block';
+    img.onclick = ()=> openLightbox(url);
+  } else {
+    img.removeAttribute('src'); img.style.display = 'none';
+  }
+}
+$('labelReadBtn').addEventListener('click', ()=> $('labelInput').click());
+$('labelInput').addEventListener('change', async (e)=>{
+  const file = e.target.files[0];
+  e.target.value = '';
+  if(!file) return;
+  currentLabel = await compressPhoto(file, 2000, 0.85);
+  renderLabel();
+  if(!session || !session.license.aiEnabled){ toast('حُفظت صورة الملصق. القراءة الآلية غير مفعّلة في رخصتك'); return; }
+  if(!navigator.onLine){ toast('حُفظت صورة الملصق. القراءة تحتاج اتصالًا بالإنترنت'); return; }
+  const btn = $('labelReadBtn');
+  const label = btn.textContent;
+  btn.disabled = true; btn.textContent = 'جارٍ قراءة الملصق...';
+  try{
+    const image = await resizeForAI(currentLabel, 1600, 0.85);
+    const r = await api('/api/ai-describe', {image, mediaType:'image/jpeg', mode:'label'}, session.token);
+    if(r.ok && r.fields){
+      const got = [];
+      if(r.fields.brand){ $('f_brand').value = r.fields.brand; got.push('الماركة'); }
+      if(r.fields.model){ $('f_model').value = r.fields.model; got.push('الموديل'); }
+      if(r.fields.sn){ $('f_sn').value = r.fields.sn; got.push('الرقم التسلسلي'); }
+      toast(got.length ? `تمت قراءة: ${got.join('، ')} — راجعها قبل الحفظ` : 'لم تظهر بيانات واضحة. صوّر الملصق عن قرب');
+    } else if(HARD_FAIL.includes(r.code)){
+      await doLogout(r.message);
+    } else {
+      toast(r.message || 'تعذّرت القراءة، حاول مرة أخرى');
+    }
+  }catch(err){
+    console.error(err);
+    toast('فشل الاتصال بالخادم — تحقق من الإنترنت');
+  }finally{
+    btn.disabled = false; btn.textContent = label;
+  }
+});
+
+// ---------- Backup reminder ----------
+let backupMsg = '';
+async function updateBackupState(){
+  if(!db) return;
+  const lastBackup = Number(await getSetting('lastBackupAt')) || 0;
+  const lastChange = Number(await getSetting('lastChangeAt')) || 0;
+  const pending = assets.length > 0 && lastChange > lastBackup;
+  const stale = !lastBackup || (Date.now() - lastBackup) > 12 * 3600000;
+  backupMsg = pending && stale
+    ? (lastBackup ? 'لديك أصول غير محفوظة في نسخة احتياطية منذ آخر تصدير.' : 'لم تأخذ نسخة احتياطية بعد.') + ' اضغط «تصدير» بالأسفل واحفظ الملف.'
+    : '';
+  renderLicenseBanner();
+}
 
 // ---------- Location session ----------
 function renderLocationBar(building, location){
@@ -906,6 +1169,7 @@ function renderLicenseBanner(){
   const p = tokenPayload(session.token);
   const g = Math.ceil((p.exp - Date.now()) / 86400000);
   if(g <= 2) msgs.push(`اتصل بالإنترنت خلال ${g} يوم لتجديد التحقق وإلا سيُطلب منك تسجيل الدخول.`);
+  if(backupMsg) msgs.push(backupMsg);
   el.textContent = msgs.join(' ');
   el.classList.toggle('show', msgs.length > 0);
 }
@@ -943,6 +1207,7 @@ function fillAccount(){
   $('acc_ai').textContent = L.aiEnabled ? 'مفعّل' : 'غير مفعّل';
   $('acc_checked').textContent = fmtDate(session.lastCheck);
   $('acc_grace').textContent = fmtDate(p.exp);
+  getSetting('lastBackupAt').then(v=> $('acc_backup').textContent = v ? new Date(Number(v)).toLocaleString('en-GB') : 'لم يتم بعد');
 }
 $('settingsBtn').addEventListener('click', ()=>{ fillAccount(); $('settingsSheet').classList.add('open'); });
 $('closeSettingsBtn').addEventListener('click', ()=> $('settingsSheet').classList.remove('open'));
@@ -1054,20 +1319,41 @@ $('exportBtn').addEventListener('click', async ()=>{
     XLSX.utils.book_append_sheet(wb, ws, 'جرد الأصول');
     const xlsxData = XLSX.write(wb, {bookType:'xlsx', type:'array'});
 
-    // Build ZIP with excel + photos
+    // Build ZIP: Excel + photos + data.json (data.json makes the export a restorable backup)
     const zip = new JSZip();
     zip.file('جرد_الأصول.xlsx', xlsxData);
     const imgFolder = zip.folder('الصور');
+    const used = new Set();
+    const uniqueName = (base)=>{
+      let name = `${base}.jpg`, i = 2;
+      while(used.has(name)){ name = `${base}_${i++}.jpg`; }
+      used.add(name);
+      return name;
+    };
+    const records = [];
     for(const a of all){
+      const safeTag = (a.tag || 'اصل').replace(/[\\/:*?"<>|]/g, '-');
+      const photoFiles = [];
       let n = 1;
       for(const p of a.photos){
         if(p){
-          const safeTag = (a.tag || 'اصل').replace(/[\\/:*?"<>|]/g, '-');
-          imgFolder.file(`${safeTag}-${n}.jpg`, p);
+          const name = uniqueName(`${safeTag}-${n}`);
+          imgFolder.file(name, p);
+          photoFiles.push(name);
           n++;
         }
       }
+      let labelFile = null;
+      if(a.labelPhoto){
+        labelFile = uniqueName(`${safeTag}-label`);
+        imgFolder.file(labelFile, a.labelPhoto);
+      }
+      const {id, photos, labelPhoto, ...fields} = a;
+      records.push({...fields, photoFiles, labelFile});
     }
+    const user = session ? tokenPayload(session.token).u : '';
+    zip.file('data.json', JSON.stringify({format:'asset-inventory-backup', version:1, exportedAt:new Date().toISOString(), user, assets:records}, null, 1));
+
     const zipBlob = await zip.generateAsync({type:'blob'});
     const url = URL.createObjectURL(zipBlob);
     const a = document.createElement('a');
@@ -1077,7 +1363,9 @@ $('exportBtn').addEventListener('click', async ()=>{
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    setTimeout(()=> URL.revokeObjectURL(url), 60000);
+    await setSetting('lastBackupAt', Date.now());
+    updateBackupState();
     toast('تم إنشاء ملف التصدير');
   } catch(err){
     console.error(err);
@@ -1085,6 +1373,51 @@ $('exportBtn').addEventListener('click', async ()=>{
   } finally {
     $('exportBtn').textContent = 'تصدير (Excel + صور)';
     $('exportBtn').disabled = false;
+  }
+});
+
+// ---------- Restore from an export file ----------
+$('restoreBtn').addEventListener('click', ()=> $('restoreInput').click());
+$('restoreInput').addEventListener('change', async (e)=>{
+  const file = e.target.files[0];
+  e.target.value = '';
+  if(!file) return;
+  const btn = $('restoreBtn');
+  btn.disabled = true; btn.textContent = 'جارٍ الاستعادة...';
+  try{
+    const zip = await JSZip.loadAsync(file);
+    const dataFile = zip.file('data.json');
+    if(!dataFile){ toast('هذا الملف لا يحتوي نسخة قابلة للاستعادة'); return; }
+    const data = JSON.parse(await dataFile.async('string'));
+    if(data.format !== 'asset-inventory-backup' || !Array.isArray(data.assets)){ toast('ملف غير صالح'); return; }
+    const existing = await dbAll();
+    const seen = new Set(existing.map(a=> normTag(a.tag) + '|' + a.createdAt));
+    const readImg = async (name)=>{
+      if(!name) return null;
+      const f = zip.file('الصور/' + name);
+      if(!f) return null;
+      return new Blob([await f.async('arraybuffer')], {type:'image/jpeg'});
+    };
+    let added = 0, skipped = 0;
+    for(const r of data.assets){
+      const key = normTag(r.tag) + '|' + r.createdAt;
+      if(seen.has(key)){ skipped++; continue; }
+      const {photoFiles = [], labelFile = null, ...fields} = r;
+      const photos = [null, null, null, null];
+      for(let i = 0; i < Math.min(4, photoFiles.length); i++) photos[i] = await readImg(photoFiles[i]);
+      await dbPut({...fields, photos, labelPhoto: await readImg(labelFile), createdAt: r.createdAt || Date.now()});
+      seen.add(key);
+      added++;
+    }
+    await setSetting('lastBackupAt', Date.now());
+    await refreshList($('searchBox').value);
+    $('settingsSheet').classList.remove('open');
+    toast(skipped ? `تمت استعادة ${added} أصل، وتخطي ${skipped} موجود مسبقًا` : `تمت استعادة ${added} أصل`);
+  }catch(err){
+    console.error(err);
+    toast('تعذّرت قراءة الملف');
+  }finally{
+    btn.disabled = false; btn.textContent = 'استعادة من ملف تصدير سابق';
   }
 });
 
