@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>إدارة التراخيص</title>
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#F5F3EF; --ink:#242220; --ink-soft:#6B6560; --line:#DCD6CC; --card:#FFFFFF;
+    --tag:#D9550C; --ok:#4B6B4E; --warn:#B0451F; --muted:#EDE9E2;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0; background:var(--bg); color:var(--ink); font-family:'IBM Plex Sans Arabic',sans-serif; font-size:14px;}
+  .mono{font-family:'IBM Plex Mono',monospace;}
+  .wrap{max-width:1100px; margin:0 auto; padding:20px 16px 60px;}
+  header{display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:20px; flex-wrap:wrap;}
+  h1{font-size:22px; margin:0;}
+  h2{font-size:17px; margin:0;}
+  .sub{color:var(--ink-soft); font-size:13px;}
+  .card{background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px; margin-bottom:18px;}
+  .card-head{display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:12px; flex-wrap:wrap;}
+  .btn{border:none; border-radius:10px; font-family:inherit; font-weight:600; font-size:14px; padding:10px 14px; cursor:pointer;}
+  .btn-primary{background:var(--tag); color:#fff;}
+  .btn-ghost{background:var(--card); color:var(--ink); border:1px solid var(--line);}
+  .btn-sm{padding:6px 10px; font-size:12.5px; border-radius:8px;}
+  .btn-danger{background:none; color:var(--warn); border:1px solid #F0CDB9;}
+  .btn:disabled{opacity:.5; cursor:default;}
+  table{width:100%; border-collapse:collapse;}
+  th,td{text-align:right; padding:10px 8px; border-bottom:1px solid var(--line); vertical-align:middle;}
+  th{font-size:12.5px; color:var(--ink-soft); font-weight:500;}
+  tr:last-child td{border-bottom:none;}
+  .table-wrap{overflow-x:auto;}
+  .pill{display:inline-block; font-size:12px; padding:3px 9px; border-radius:999px; background:var(--muted); color:var(--ink-soft);}
+  .pill.ok{background:#E3ECE3; color:var(--ok);}
+  .pill.bad{background:#FBEDE5; color:var(--warn);}
+  .actions{display:flex; gap:6px; flex-wrap:wrap;}
+  .empty{color:var(--ink-soft); padding:16px 0; text-align:center;}
+
+  .grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:12px;}
+  label{display:block; font-size:12.5px; color:var(--ink-soft); margin-bottom:5px;}
+  input,select,textarea{width:100%; border:1px solid var(--line); background:var(--card); border-radius:9px; padding:10px; font-size:14px; font-family:inherit; color:var(--ink);}
+  input:focus,select:focus,textarea:focus{outline:2px solid var(--tag); outline-offset:1px;}
+  .check{display:flex; align-items:center; gap:8px; margin-top:24px;}
+  .check input{width:auto;}
+
+  .modal-bg{position:fixed; inset:0; background:rgba(36,34,32,.45); display:none; align-items:flex-start; justify-content:center; padding:40px 16px; z-index:50; overflow-y:auto;}
+  .modal-bg.open{display:flex;}
+  .modal{background:var(--bg); border-radius:14px; width:100%; max-width:640px; padding:20px;}
+  .modal-foot{display:flex; gap:8px; justify-content:flex-start; margin-top:18px;}
+  .form-err{color:var(--warn); min-height:20px; margin-top:10px; font-size:13px;}
+
+  .login{max-width:380px; margin:12vh auto; padding:0 16px;}
+  .toast{position:fixed; bottom:20px; left:50%; transform:translateX(-50%); background:var(--ink); color:var(--bg); padding:10px 16px; border-radius:10px; opacity:0; transition:opacity .25s; pointer-events:none; z-index:90;}
+  .toast.show{opacity:1;}
+  .stat{font-family:'IBM Plex Mono',monospace;}
+</style>
+</head>
+<body>
+
+<div class="login" id="loginView">
+  <h1>إدارة التراخيص</h1>
+  <p class="sub">أدخل كلمة مرور الإدارة (المتغير ADMIN_PASSWORD في Netlify).</p>
+  <form id="loginForm">
+    <input type="password" id="adminPass" autocomplete="current-password" dir="ltr" placeholder="كلمة مرور الإدارة">
+    <div class="form-err" id="loginErr"></div>
+    <button class="btn btn-primary" style="width:100%" type="submit">دخول</button>
+  </form>
+</div>
+
+<div class="wrap" id="appView" style="display:none">
+  <header>
+    <div>
+      <h1>إدارة التراخيص</h1>
+      <div class="sub">استهلاك الذكاء الاصطناعي لشهر <span class="mono" id="monthLbl"></span></div>
+    </div>
+    <div class="actions">
+      <button class="btn btn-ghost" id="reloadBtn">تحديث</button>
+      <button class="btn btn-ghost" id="logoutBtn">خروج</button>
+    </div>
+  </header>
+
+  <div class="card">
+    <div class="card-head">
+      <h2>الرخص (العملاء)</h2>
+      <button class="btn btn-primary" id="newLicBtn">+ رخصة جديدة</button>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>العميل</th><th>الحالة</th><th>تنتهي</th><th>المستخدمون</th><th>أجهزة/مستخدم</th><th>طلبات AI هذا الشهر</th><th></th></tr></thead>
+        <tbody id="licBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <h2>المستخدمون</h2>
+      <button class="btn btn-primary" id="newUserBtn">+ مستخدم جديد</button>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>اسم المستخدم</th><th>الاسم</th><th>العميل</th><th>الحالة</th><th>الأجهزة</th><th>آخر دخول</th><th></th></tr></thead>
+        <tbody id="userBody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- License modal -->
+<div class="modal-bg" id="licModal">
+  <form class="modal" id="licForm">
+    <h2 id="licTitle">رخصة جديدة</h2>
+    <p class="sub">الرخصة تمثّل عميلًا واحدًا وتحدد مدة الاستخدام وحدوده.</p>
+    <input type="hidden" id="l_id">
+    <div class="grid">
+      <div style="grid-column:1/-1"><label>اسم العميل</label><input id="l_customer" required></div>
+      <div><label>تاريخ الانتهاء</label><input id="l_expires" type="date"></div>
+      <div><label>أقصى عدد مستخدمين</label><input id="l_maxUsers" type="number" min="1" value="1"></div>
+      <div><label>أجهزة لكل مستخدم</label><input id="l_maxDevices" type="number" min="1" value="1"></div>
+      <div><label>حد طلبات AI شهريًا (0 = بلا حد)</label><input id="l_aiCap" type="number" min="0" value="300"></div>
+      <div class="check"><input type="checkbox" id="l_ai" checked><label for="l_ai" style="margin:0">الذكاء الاصطناعي مفعّل</label></div>
+      <div class="check"><input type="checkbox" id="l_active" checked><label for="l_active" style="margin:0">الرخصة فعّالة</label></div>
+      <div style="grid-column:1/-1"><label>ملاحظات (سعر، رقم العقد...)</label><textarea id="l_notes" rows="2"></textarea></div>
+    </div>
+    <div class="form-err" id="licErr"></div>
+    <div class="modal-foot">
+      <button class="btn btn-primary" type="submit">حفظ</button>
+      <button class="btn btn-ghost" type="button" data-close>إلغاء</button>
+    </div>
+  </form>
+</div>
+
+<!-- User modal -->
+<div class="modal-bg" id="userModal">
+  <form class="modal" id="userForm">
+    <h2 id="userTitle">مستخدم جديد</h2>
+    <p class="sub">اسم المستخدم بالإنجليزية (3-40 حرفًا). كلمة المرور 8 أحرف على الأقل.</p>
+    <div class="grid">
+      <div><label>اسم المستخدم</label><input id="u_username" dir="ltr" autocapitalize="none" required></div>
+      <div><label>الاسم الظاهر</label><input id="u_display"></div>
+      <div><label>الرخصة (العميل)</label><select id="u_license" required></select></div>
+      <div><label id="u_passLbl">كلمة المرور</label><input id="u_password" dir="ltr" autocomplete="new-password"></div>
+      <div class="check"><input type="checkbox" id="u_active" checked><label for="u_active" style="margin:0">الحساب فعّال</label></div>
+      <div style="align-self:end"><button type="button" class="btn btn-ghost btn-sm" id="genPassBtn">توليد كلمة مرور</button></div>
+    </div>
+    <div class="form-err" id="userErr"></div>
+    <div class="modal-foot">
+      <button class="btn btn-primary" type="submit">حفظ</button>
+      <button class="btn btn-ghost" type="button" data-close>إلغاء</button>
+    </div>
+  </form>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const $ = (id)=> document.getElementById(id);
+let adminKey = '';       // kept in memory only; closing the tab signs out
+let data = {licenses:[], users:[]};
+
+const esc = (s)=> String(s ?? '').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function toast(m){ const t=$('toast'); t.textContent=m; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),2000); }
+
+async function call(action, extra={}){
+  const r = await fetch('/api/admin', {
+    method:'POST',
+    headers:{'Content-Type':'application/json','x-admin-key':adminKey},
+    body: JSON.stringify({action, ...extra})
+  });
+  let d = {}; try{ d = await r.json(); }catch{}
+  if(r.status === 401){ signOut('انتهت الجلسة أو كلمة المرور غير صحيحة'); }
+  return d;
+}
+
+function signOut(msg){
+  adminKey = '';
+  $('appView').style.display = 'none';
+  $('loginView').style.display = 'block';
+  $('loginErr').textContent = msg || '';
+}
+
+$('loginForm').addEventListener('submit', async (e)=>{
+  e.preventDefault();
+  adminKey = $('adminPass').value;
+  const d = await call('overview');
+  if(d.ok){
+    $('adminPass').value = '';
+    $('loginView').style.display = 'none';
+    $('appView').style.display = 'block';
+    render(d);
+  } else if(!$('loginErr').textContent){
+    $('loginErr').textContent = d.message || 'تعذّر الاتصال';
+  }
+});
+$('logoutBtn').addEventListener('click', ()=> signOut(''));
+$('reloadBtn').addEventListener('click', load);
+
+async function load(){ const d = await call('overview'); if(d.ok) render(d); }
+
+function daysLeft(date){
+  if(!date) return null;
+  return Math.ceil((new Date(date+'T23:59:59Z') - Date.now())/86400000);
+}
+function licStatus(l){
+  if(!l.active) return '<span class="pill bad">موقوفة</span>';
+  const d = daysLeft(l.expiresAt);
+  if(d !== null && d < 0) return '<span class="pill bad">منتهية</span>';
+  if(d !== null && d <= 14) return `<span class="pill bad">تنتهي خلال ${d} يوم</span>`;
+  return '<span class="pill ok">فعّالة</span>';
+}
+
+function render(d){
+  data = d;
+  $('monthLbl').textContent = d.month;
+  const byId = Object.fromEntries(d.licenses.map(l=>[l.id,l]));
+
+  $('licBody').innerHTML = d.licenses.length ? d.licenses.map(l=>`
+    <tr>
+      <td><b>${esc(l.customer)}</b>${l.notes ? `<div class="sub">${esc(l.notes)}</div>` : ''}</td>
+      <td>${licStatus(l)}</td>
+      <td class="mono">${esc(l.expiresAt || '—')}</td>
+      <td class="stat">${l.userCount}/${l.maxUsers}</td>
+      <td class="stat">${l.maxDevicesPerUser}</td>
+      <td class="stat">${l.aiEnabled ? `${l.usage.count}${l.aiMonthlyCap ? ' / ' + l.aiMonthlyCap : ''}` : 'غير مفعّل'}</td>
+      <td><div class="actions">
+        <button class="btn btn-ghost btn-sm" data-edit-lic="${esc(l.id)}">تعديل</button>
+        <button class="btn btn-ghost btn-sm" data-renew="${esc(l.id)}">تجديد سنة</button>
+        <button class="btn btn-danger btn-sm" data-del-lic="${esc(l.id)}">حذف</button>
+      </div></td>
+    </tr>`).join('') : '<tr><td colspan="7" class="empty">لا توجد رخص بعد. ابدأ بإنشاء رخصة لأول عميل.</td></tr>';
+
+  $('userBody').innerHTML = d.users.length ? d.users.map(u=>`
+    <tr>
+      <td class="mono">${esc(u.username)}</td>
+      <td>${esc(u.displayName || '—')}</td>
+      <td>${esc(byId[u.licenseId]?.customer || '؟')}</td>
+      <td>${u.active ? '<span class="pill ok">فعّال</span>' : '<span class="pill bad">موقوف</span>'}</td>
+      <td class="stat">${u.devices}/${byId[u.licenseId]?.maxDevicesPerUser ?? '—'}</td>
+      <td class="mono">${u.lastLogin ? esc(u.lastLogin.slice(0,10)) : '—'}</td>
+      <td><div class="actions">
+        <button class="btn btn-ghost btn-sm" data-edit-user="${esc(u.username)}">تعديل</button>
+        <button class="btn btn-ghost btn-sm" data-reset="${esc(u.username)}">إعادة ضبط الأجهزة</button>
+        <button class="btn btn-danger btn-sm" data-del-user="${esc(u.username)}">حذف</button>
+      </div></td>
+    </tr>`).join('') : '<tr><td colspan="7" class="empty">لا يوجد مستخدمون بعد.</td></tr>';
+
+  $('newUserBtn').disabled = d.licenses.length === 0;
+}
+
+// ---------- modals ----------
+function openModal(id){ $(id).classList.add('open'); }
+function closeModals(){ document.querySelectorAll('.modal-bg').forEach(m=>m.classList.remove('open')); }
+document.querySelectorAll('[data-close]').forEach(b=> b.addEventListener('click', closeModals));
+document.querySelectorAll('.modal-bg').forEach(m=> m.addEventListener('click', e=>{ if(e.target===m) closeModals(); }));
+
+function inAYear(from){
+  const base = from && daysLeft(from) > 0 ? new Date(from) : new Date();
+  base.setFullYear(base.getFullYear()+1);
+  return base.toISOString().slice(0,10);
+}
+
+function openLicense(l){
+  $('licTitle').textContent = l ? 'تعديل الرخصة' : 'رخصة جديدة';
+  $('l_id').value = l?.id || '';
+  $('l_customer').value = l?.customer || '';
+  $('l_expires').value = l?.expiresAt || inAYear();
+  $('l_maxUsers').value = l?.maxUsers ?? 1;
+  $('l_maxDevices').value = l?.maxDevicesPerUser ?? 1;
+  $('l_aiCap').value = l?.aiMonthlyCap ?? 300;
+  $('l_ai').checked = l ? l.aiEnabled !== false : true;
+  $('l_active').checked = l ? l.active !== false : true;
+  $('l_notes').value = l?.notes || '';
+  $('licErr').textContent = '';
+  openModal('licModal');
+}
+$('newLicBtn').addEventListener('click', ()=> openLicense(null));
+
+$('licForm').addEventListener('submit', async (e)=>{
+  e.preventDefault();
+  const d = await call('saveLicense', {license:{
+    id: $('l_id').value || undefined,
+    customer: $('l_customer').value,
+    expiresAt: $('l_expires').value || null,
+    maxUsers: $('l_maxUsers').value,
+    maxDevicesPerUser: $('l_maxDevices').value,
+    aiMonthlyCap: $('l_aiCap').value,
+    aiEnabled: $('l_ai').checked,
+    active: $('l_active').checked,
+    notes: $('l_notes').value
+  }});
+  if(!d.ok){ $('licErr').textContent = d.message || 'تعذّر الحفظ'; return; }
+  closeModals(); toast('تم حفظ الرخصة'); load();
+});
+
+function genPassword(){
+  const chars = 'abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  const arr = new Uint32Array(12); crypto.getRandomValues(arr);
+  return Array.from(arr, n=> chars[n % chars.length]).join('');
+}
+$('genPassBtn').addEventListener('click', ()=>{ $('u_password').value = genPassword(); });
+
+function openUser(u){
+  const isNew = !u;
+  $('userTitle').textContent = isNew ? 'مستخدم جديد' : 'تعديل المستخدم';
+  $('u_username').value = u?.username || '';
+  $('u_username').readOnly = !isNew;
+  $('u_display').value = u?.displayName || '';
+  $('u_license').innerHTML = data.licenses.map(l=>`<option value="${esc(l.id)}">${esc(l.customer)}</option>`).join('');
+  if(u) $('u_license').value = u.licenseId;
+  $('u_password').value = isNew ? genPassword() : '';
+  $('u_passLbl').textContent = isNew ? 'كلمة المرور' : 'كلمة مرور جديدة (اتركها فارغة للإبقاء)';
+  $('u_active').checked = u ? u.active : true;
+  $('userErr').textContent = '';
+  openModal('userModal');
+}
+$('newUserBtn').addEventListener('click', ()=> openUser(null));
+
+$('userForm').addEventListener('submit', async (e)=>{
+  e.preventDefault();
+  const password = $('u_password').value;
+  const username = $('u_username').value;
+  const d = await call('saveUser', {user:{
+    username, displayName: $('u_display').value, licenseId: $('u_license').value,
+    password: password || undefined, active: $('u_active').checked
+  }});
+  if(!d.ok){ $('userErr').textContent = d.message || 'تعذّر الحفظ'; return; }
+  closeModals(); load();
+  if(password){
+    const text = `اسم المستخدم: ${d.user.username}\nكلمة المرور: ${password}\nالرابط: ${location.origin}`;
+    try{ await navigator.clipboard.writeText(text); toast('تم الحفظ ونسخ بيانات الدخول لإرسالها للعميل'); }
+    catch{ prompt('بيانات الدخول (انسخها وأرسلها للعميل):', text.replace(/\n/g,' | ')); }
+  } else { toast('تم حفظ المستخدم'); }
+});
+
+// ---------- row actions ----------
+document.addEventListener('click', async (e)=>{
+  const b = e.target.closest('button'); if(!b) return;
+  if(b.dataset.editLic) openLicense(data.licenses.find(l=>l.id===b.dataset.editLic));
+  if(b.dataset.editUser) openUser(data.users.find(u=>u.username===b.dataset.editUser));
+  if(b.dataset.renew){
+    const l = data.licenses.find(x=>x.id===b.dataset.renew);
+    const next = inAYear(l.expiresAt);
+    if(confirm(`تجديد رخصة ${l.customer} حتى ${next}؟`)){
+      const d = await call('saveLicense', {license:{...l, expiresAt: next, active: true}});
+      if(d.ok){ toast('تم التجديد'); load(); } else toast(d.message || 'تعذّر التجديد');
+    }
+  }
+  if(b.dataset.delLic){
+    const l = data.licenses.find(x=>x.id===b.dataset.delLic);
+    if(confirm(`حذف رخصة ${l.customer} نهائيًا؟`)){
+      const d = await call('deleteLicense', {id:l.id});
+      if(d.ok){ toast('تم الحذف'); load(); } else toast(d.message || 'تعذّر الحذف');
+    }
+  }
+  if(b.dataset.reset){
+    if(confirm('إعادة ضبط الأجهزة المسجّلة لهذا المستخدم؟ سيتمكن من الدخول من جهاز جديد.')){
+      const d = await call('resetDevices', {username:b.dataset.reset});
+      if(d.ok){ toast('تمت إعادة الضبط'); load(); }
+    }
+  }
+  if(b.dataset.delUser){
+    if(confirm(`حذف المستخدم ${b.dataset.delUser} نهائيًا؟`)){
+      const d = await call('deleteUser', {username:b.dataset.delUser});
+      if(d.ok){ toast('تم الحذف'); load(); }
+    }
+  }
+});
+</script>
+</body>
+</html>

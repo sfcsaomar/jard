@@ -1,0 +1,1110 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>جرد الأصول</title>
+<meta name="theme-color" content="#F5F3EF">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/icon.svg">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<style>
+  :root{
+    --bg:#F5F3EF;
+    --ink:#242220;
+    --ink-soft:#6B6560;
+    --line:#DCD6CC;
+    --card:#FFFFFF;
+    --tag:#D9550C;
+    --tag-ink:#FFFFFF;
+    --ok:#4B6B4E;
+    --warn:#B0451F;
+    --slot-empty:#EDE9E2;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg);
+    color:var(--ink);
+    font-family:'IBM Plex Sans Arabic', sans-serif;
+    -webkit-tap-highlight-color:transparent;
+    padding-bottom:96px;
+  }
+  .mono{font-family:'IBM Plex Mono', monospace; letter-spacing:0.02em;}
+
+  header.topbar{
+    position:sticky; top:0; z-index:20;
+    background:var(--bg);
+    border-bottom:1px solid var(--line);
+    padding:14px 16px 12px;
+  }
+  .topbar-row{display:flex; align-items:baseline; justify-content:space-between; gap:10px;}
+  .brand{font-size:19px; font-weight:700;}
+  .count-pill{
+    font-size:13px; color:var(--ink-soft);
+  }
+  .count-pill b{color:var(--ink); font-weight:600;}
+  .search-row{margin-top:10px; display:flex; gap:8px;}
+  .search-input{
+    flex:1; border:1px solid var(--line); background:var(--card);
+    border-radius:10px; padding:10px 12px; font-size:14px; font-family:inherit;
+    color:var(--ink);
+  }
+  .search-input:focus{outline:2px solid var(--tag); outline-offset:1px;}
+
+  .location-bar{
+    margin-top:10px; background:var(--card); border:1px solid var(--line); border-radius:10px;
+    padding:10px 12px; display:flex; align-items:center; justify-content:space-between; gap:10px;
+  }
+  .location-bar .loc-text{font-size:13px; color:var(--ink); min-width:0;}
+  .location-bar .loc-text b{font-family:'IBM Plex Mono', monospace; color:var(--tag);}
+  .location-bar .loc-empty{color:var(--ink-soft);}
+  .location-bar button{
+    flex-shrink:0; background:var(--ink); color:var(--bg); border:none; border-radius:8px;
+    padding:7px 12px; font-size:12.5px; font-family:inherit; font-weight:600; cursor:pointer;
+  }
+
+  main{padding:14px 16px 0;}
+
+  .empty-state{
+    text-align:center; padding:60px 20px; color:var(--ink-soft);
+  }
+  .empty-state .big{font-size:15px; margin-bottom:6px; color:var(--ink); font-weight:600;}
+  .empty-state .small{font-size:13px; line-height:1.6;}
+
+  .asset-card{
+    background:var(--card); border:1px solid var(--line); border-radius:12px;
+    padding:12px; margin-bottom:10px; display:flex; gap:12px; align-items:center;
+    cursor:pointer;
+  }
+  .asset-thumb{
+    width:56px; height:56px; border-radius:8px; background:var(--slot-empty);
+    flex-shrink:0; object-fit:cover; border:1px solid var(--line);
+  }
+  .asset-info{flex:1; min-width:0;}
+  .asset-tag{font-size:13px; color:var(--tag); font-weight:600;}
+  .asset-name{font-size:15px; font-weight:600; margin:2px 0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .asset-meta{font-size:12.5px; color:var(--ink-soft);}
+  .asset-photos-count{font-size:12px; color:var(--ink-soft); flex-shrink:0;}
+
+  .fab-row{
+    position:fixed; bottom:0; left:0; right:0; z-index:30;
+    background:linear-gradient(to top, var(--bg) 60%, transparent);
+    padding:16px 16px 18px; display:flex; gap:10px;
+  }
+  .btn{
+    border:none; border-radius:12px; font-family:inherit; font-weight:600;
+    font-size:15px; padding:14px 16px; cursor:pointer;
+  }
+  .btn-primary{background:var(--tag); color:var(--tag-ink); flex:1;}
+  .btn-secondary{background:var(--card); color:var(--ink); border:1px solid var(--line);}
+  .btn-block{width:100%;}
+  .btn:active{transform:scale(0.98);}
+
+  /* Modal / form screen */
+  .sheet{
+    position:fixed; inset:0; background:var(--bg); z-index:100;
+    overflow-y:auto; display:none;
+  }
+  .sheet.open{display:block;}
+  .sheet-header{
+    position:sticky; top:0; background:var(--bg); border-bottom:1px solid var(--line);
+    padding:14px 16px; display:flex; align-items:center; justify-content:space-between; z-index:5;
+  }
+  .sheet-title{font-size:16px; font-weight:700;}
+  .icon-btn{
+    background:none; border:none; font-size:22px; color:var(--ink-soft); cursor:pointer;
+    padding:4px 8px; line-height:1;
+  }
+  .sheet-body{padding:16px; padding-bottom:110px;}
+
+  .field{margin-bottom:16px;}
+  .field label{display:block; font-size:13px; color:var(--ink-soft); margin-bottom:6px; font-weight:500;}
+  .field input[type=text], .field textarea, .field select{
+    width:100%; border:1px solid var(--line); background:var(--card);
+    border-radius:10px; padding:12px; font-size:15px; font-family:inherit; color:var(--ink);
+  }
+  .field input[type=text]:focus, .field textarea:focus, .field select:focus{
+    outline:2px solid var(--tag); outline-offset:1px;
+  }
+  .field textarea{resize:vertical; min-height:70px;}
+  .tag-input-row{display:flex; gap:8px;}
+  .tag-input-row input{flex:1;}
+  .btn-next{
+    background:var(--card); border:1px solid var(--line); border-radius:10px;
+    padding:0 14px; font-family:'IBM Plex Mono', monospace; font-weight:600; font-size:14px;
+    color:var(--ink); cursor:pointer;
+  }
+  .condition-chips{display:flex; gap:8px; flex-wrap:wrap;}
+  .chip{
+    border:1px solid var(--line); background:var(--card); border-radius:999px;
+    padding:9px 16px; font-size:13.5px; cursor:pointer; color:var(--ink-soft); font-family:inherit;
+  }
+  .chip.active{background:var(--ink); color:var(--bg); border-color:var(--ink);}
+
+  .photo-grid{display:grid; grid-template-columns:repeat(4, 1fr); gap:8px;}
+  .photo-slot{
+    aspect-ratio:1; border-radius:10px; border:1.5px dashed var(--line);
+    background:var(--slot-empty); position:relative; overflow:hidden;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .photo-slot img{width:100%; height:100%; object-fit:cover;}
+  .photo-slot .plus{font-size:22px; color:var(--ink-soft); font-weight:300;}
+  .photo-slot .remove-x{
+    position:absolute; top:4px; left:4px; width:20px; height:20px; border-radius:50%;
+    background:rgba(0,0,0,0.55); color:#fff; display:flex; align-items:center; justify-content:center;
+    font-size:13px;
+  }
+  .photo-hint{font-size:12px; color:var(--ink-soft); margin-top:8px; line-height:1.6;}
+
+  .sheet-footer{
+    position:fixed; bottom:0; left:0; right:0; background:var(--bg);
+    border-top:1px solid var(--line); padding:12px 16px 16px; display:flex; gap:10px; z-index:10;
+  }
+  .delete-link{
+    text-align:center; color:var(--warn); font-size:13.5px; margin-top:18px; cursor:pointer;
+    text-decoration:underline;
+  }
+
+  .btn-ai{
+    margin-top:10px; width:100%; background:var(--card); border:1px solid var(--tag);
+    color:var(--tag); border-radius:10px; padding:11px; font-size:14px; font-weight:600;
+    font-family:inherit; cursor:pointer;
+  }
+  .btn-ai:disabled{opacity:0.45; cursor:default;}
+  .btn-ai.loading{opacity:0.7;}
+  .ai-hint{font-size:12px; color:var(--ink-soft); margin-top:6px; line-height:1.6; min-height:0;}
+
+  .more-toggle{
+    display:flex; align-items:center; justify-content:space-between;
+    background:var(--card); border:1px solid var(--line); border-radius:10px;
+    padding:12px; font-size:14px; font-weight:600; cursor:pointer; margin-bottom:16px;
+  }
+  .more-toggle .arrow{transition:transform 0.2s; color:var(--ink-soft);}
+  .more-toggle.open .arrow{transform:rotate(180deg);}
+  .more-fields{display:none;}
+  .more-fields.open{display:block;}
+  .two-col{display:grid; grid-template-columns:1fr 1fr; gap:10px;}
+
+  /* Toast */
+  .toast{
+    position:fixed; bottom:100px; left:50%; transform:translateX(-50%);
+    background:var(--ink); color:var(--bg); padding:11px 18px; border-radius:10px;
+    font-size:13.5px; z-index:200; opacity:0; transition:opacity 0.25s; pointer-events:none;
+    white-space:nowrap;
+  }
+  .toast.show{opacity:1;}
+
+  /* Lightbox */
+  .lightbox{
+    position:fixed; inset:0; background:rgba(0,0,0,0.9); z-index:300; display:none;
+    align-items:center; justify-content:center; padding:20px;
+  }
+  .lightbox.open{display:flex;}
+  .lightbox img{max-width:100%; max-height:100%; border-radius:8px;}
+  .lightbox .icon-btn{position:absolute; top:16px; left:16px; color:#fff; font-size:26px;}
+
+  /* Login */
+  .login-screen{
+    position:fixed; inset:0; z-index:500; background:var(--bg);
+    display:flex; align-items:center; justify-content:center; padding:24px 16px;
+  }
+  .login-screen.hidden{display:none;}
+  .login-box{width:100%; max-width:380px;}
+  .login-title{font-size:24px; font-weight:700; margin-bottom:4px;}
+  .login-sub{font-size:13.5px; color:var(--ink-soft); margin-bottom:24px; line-height:1.6;}
+  .login-box input{
+    width:100%; border:1px solid var(--line); background:var(--card); border-radius:10px;
+    padding:13px 12px; font-size:15px; font-family:inherit; color:var(--ink);
+  }
+  .login-box input:focus{outline:2px solid var(--tag); outline-offset:1px;}
+  .login-err{color:var(--warn); font-size:13.5px; min-height:20px; margin:4px 0 12px; line-height:1.6;}
+  .login-foot{font-size:12px; color:var(--ink-soft); margin-top:18px; text-align:center; line-height:1.6;}
+  .booting .login-box{visibility:hidden;}
+
+  .lic-banner{
+    margin-top:10px; border-radius:10px; padding:9px 12px; font-size:12.5px; line-height:1.6;
+    background:#FBEDE5; color:var(--warn); border:1px solid #F0CDB9; display:none;
+  }
+  .lic-banner.show{display:block;}
+  .info-row{display:flex; justify-content:space-between; gap:10px; padding:11px 0; border-bottom:1px solid var(--line); font-size:14px;}
+  .info-row span:first-child{color:var(--ink-soft);}
+  .info-row span:last-child{font-weight:600; text-align:left;}
+</style>
+</head>
+<body>
+
+<div class="login-screen booting" id="loginScreen">
+  <form class="login-box" id="loginForm" autocomplete="on">
+    <div class="login-title">جرد الأصول</div>
+    <div class="login-sub">سجّل الدخول بالحساب الذي زوّدك به المزوّد. تحتاج اتصالًا بالإنترنت عند أول دخول فقط، ثم يعمل التطبيق دون اتصال.</div>
+    <div class="field">
+      <label for="lg_user">اسم المستخدم</label>
+      <input id="lg_user" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" dir="ltr">
+    </div>
+    <div class="field">
+      <label for="lg_pass">كلمة المرور</label>
+      <input id="lg_pass" type="password" autocomplete="current-password" dir="ltr">
+    </div>
+    <div class="login-err" id="loginErr"></div>
+    <button type="submit" class="btn btn-primary btn-block" id="loginBtn">دخول</button>
+    <div class="login-foot">للحصول على رخصة أو تجديدها تواصل مع المزوّد.</div>
+  </form>
+</div>
+
+<header class="topbar">
+  <div class="topbar-row">
+    <div class="brand">جرد الأصول</div>
+    <div style="display:flex; align-items:center; gap:10px;">
+      <div class="count-pill"><b id="assetCount">0</b> أصل مسجّل</div>
+      <button class="icon-btn" id="settingsBtn" style="font-size:19px;" title="الحساب والرخصة">⚙</button>
+    </div>
+  </div>
+  <div class="lic-banner" id="licBanner"></div>
+  <div class="search-row">
+    <input class="search-input" id="searchBox" type="text" placeholder="ابحث برقم الأصل أو الاسم...">
+  </div>
+  <div class="location-bar">
+    <div class="loc-text" id="locText">لا يوجد موقع محدد</div>
+    <button id="setLocationBtn">📍 تحديد الموقع</button>
+  </div>
+</header>
+
+<main>
+  <div id="listWrap"></div>
+  <div class="empty-state" id="emptyState" style="display:none;">
+    <div class="big">لا توجد أصول مسجّلة بعد</div>
+    <div class="small">اضغط "أصل جديد" بالأسفل، الصق الرقم على القطعة<br>وابدأ بالتصوير والتوصيف.</div>
+  </div>
+</main>
+
+<div class="fab-row">
+  <button class="btn btn-secondary" id="exportBtn">تصدير (Excel + صور)</button>
+  <button class="btn btn-primary" id="addBtn">+ أصل جديد</button>
+</div>
+
+<!-- Add/Edit Sheet -->
+<div class="sheet" id="formSheet">
+  <div class="sheet-header">
+    <button class="icon-btn" id="closeFormBtn">✕</button>
+    <div class="sheet-title" id="formTitle">أصل جديد</div>
+    <span style="width:30px;"></span>
+  </div>
+  <div class="sheet-body">
+
+    <div class="field">
+      <label>رقم الأصل</label>
+      <div class="tag-input-row">
+        <input type="text" id="f_tag" class="mono" placeholder="مثال: A-0012" inputmode="text">
+        <button class="btn-next" id="nextTagBtn">التالي</button>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>الصور (٣-٤ صور من كل الجوانب)</label>
+      <div class="photo-grid" id="photoGrid"></div>
+      <div class="photo-hint">اضغط على أي مربع لالتقاط صورة بالكاميرا. اضغط على الصورة لإعادة التقاطها.</div>
+    </div>
+
+    <div class="field">
+      <label>الفئة</label>
+      <select id="f_category">
+        <option value="">اختر الفئة</option>
+        <option>Furniture</option>
+        <option>COMPUTER &amp; NET WORK</option>
+        <option>Electrical Appliances</option>
+        <option>Lighting</option>
+        <option>Fixtures &amp; Fittings</option>
+        <option>Other</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <label>الوصف / الاسم</label>
+      <input type="text" id="f_name" placeholder="مثال: طاولة اجتماعات خشب بني، ٦ مقاعد">
+      <button type="button" class="btn-ai" id="aiSuggestBtn">✨ اقترح وصف بالذكاء الاصطناعي</button>
+      <div class="ai-hint" id="aiHint"></div>
+    </div>
+
+    <div class="field">
+      <label>الحالة</label>
+      <div class="condition-chips" id="conditionChips">
+        <button type="button" class="chip" data-v="Good">جيد</button>
+        <button type="button" class="chip" data-v="New">جديد</button>
+        <button type="button" class="chip" data-v="Fair">متوسط</button>
+        <button type="button" class="chip" data-v="Needs Maintenance">يحتاج صيانة</button>
+      </div>
+    </div>
+
+    <div class="field two-col">
+      <div>
+        <label>رقم المبنى</label>
+        <input type="text" id="f_building" class="mono" placeholder="B01">
+      </div>
+      <div>
+        <label>الموقع / الغرفة</label>
+        <input type="text" id="f_location" placeholder="Room 3">
+      </div>
+    </div>
+
+    <div class="more-toggle" id="moreToggle">
+      <span>تفاصيل إضافية (اختياري)</span>
+      <span class="arrow">⌄</span>
+    </div>
+    <div class="more-fields" id="moreFields">
+      <div class="field two-col">
+        <div>
+          <label>كود الفئة</label>
+          <input type="text" id="f_catcode" class="mono" placeholder="10000">
+        </div>
+        <div>
+          <label>الفئة الفرعية</label>
+          <input type="text" id="f_subcat" placeholder="Chairs, stools">
+        </div>
+      </div>
+      <div class="field two-col">
+        <div>
+          <label>كود الفئة الفرعية</label>
+          <input type="text" id="f_subcatcode" class="mono" placeholder="10054">
+        </div>
+        <div>
+          <label>الماركة</label>
+          <input type="text" id="f_brand" placeholder="DELL">
+        </div>
+      </div>
+      <div class="field two-col">
+        <div>
+          <label>الموديل</label>
+          <input type="text" id="f_model" placeholder="">
+        </div>
+        <div>
+          <label>الرقم التسلسلي (SN)</label>
+          <input type="text" id="f_sn" class="mono" placeholder="">
+        </div>
+      </div>
+      <div class="field two-col">
+        <div>
+          <label>رقم اللوحة</label>
+          <input type="text" id="f_plateno" class="mono" placeholder="">
+        </div>
+        <div>
+          <label>القيمة</label>
+          <input type="text" id="f_value" inputmode="decimal" placeholder="900">
+        </div>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>ملاحظات (اختياري)</label>
+      <textarea id="f_notes" placeholder="أي تفاصيل إضافية..."></textarea>
+    </div>
+
+    <div class="delete-link" id="deleteLink" style="display:none;">حذف هذا الأصل</div>
+  </div>
+
+  <div class="sheet-footer">
+    <button class="btn btn-primary btn-block" id="saveBtn">حفظ الأصل</button>
+  </div>
+</div>
+
+<!-- Location Sheet -->
+<div class="sheet" id="locationSheet">
+  <div class="sheet-header">
+    <button class="icon-btn" id="closeLocationBtn">✕</button>
+    <div class="sheet-title">تحديد الموقع الحالي</div>
+    <span style="width:30px;"></span>
+  </div>
+  <div class="sheet-body">
+    <div class="field">
+      <label>رقم المبنى</label>
+      <input type="text" id="loc_building" class="mono" placeholder="مثال: B01">
+    </div>
+    <div class="field">
+      <label>الغرفة / الموقع</label>
+      <input type="text" id="loc_room" placeholder="مثال: Room 3">
+    </div>
+    <div class="photo-hint">
+      كل أصل جديد تضيفه بعد الحفظ يُعبّى تلقائياً بهذا المبنى والموقع. لما تنتقل لغرفة ثانية، ارجع هنا وحدّث الموقع فقط — وحدّث المبنى أيضاً لو انتقلت لمبنى مختلف بالكامل.
+    </div>
+  </div>
+  <div class="sheet-footer">
+    <button class="btn btn-primary btn-block" id="saveLocationBtn">حفظ الموقع الحالي</button>
+  </div>
+</div>
+
+<!-- Account Sheet -->
+<div class="sheet" id="settingsSheet">
+  <div class="sheet-header">
+    <button class="icon-btn" id="closeSettingsBtn">✕</button>
+    <div class="sheet-title">الحساب والرخصة</div>
+    <span style="width:30px;"></span>
+  </div>
+  <div class="sheet-body">
+    <div class="info-row"><span>المستخدم</span><span id="acc_user">—</span></div>
+    <div class="info-row"><span>العميل</span><span id="acc_customer">—</span></div>
+    <div class="info-row"><span>تنتهي الرخصة</span><span id="acc_expiry" class="mono">—</span></div>
+    <div class="info-row"><span>الذكاء الاصطناعي</span><span id="acc_ai">—</span></div>
+    <div class="info-row"><span>آخر تحقق من الخادم</span><span id="acc_checked" class="mono">—</span></div>
+    <div class="photo-hint" style="margin-top:14px;">
+      يعمل التطبيق دون إنترنت حتى تاريخ <b id="acc_grace" class="mono">—</b>. اتصل بالإنترنت قبل هذا التاريخ ليتجدد التحقق تلقائيًا.
+      بيانات الجرد والصور محفوظة على هذا الجهاز فقط؛ صدّرها قبل تسجيل الخروج أو تغيير الجهاز.
+    </div>
+  </div>
+  <div class="sheet-footer">
+    <button class="btn btn-secondary" id="checkNowBtn">تحقق الآن</button>
+    <button class="btn btn-primary" id="logoutBtn">تسجيل الخروج</button>
+  </div>
+</div>
+
+<!-- hidden camera inputs -->
+<input type="file" accept="image/*" capture="environment" id="cameraInput" style="display:none;">
+
+<div class="toast" id="toast"></div>
+
+<div class="lightbox" id="lightbox">
+  <button class="icon-btn" id="closeLightbox">✕</button>
+  <img id="lightboxImg" src="">
+</div>
+
+<script>
+// ---------- IndexedDB layer ----------
+// Each signed-in user gets a separate database on the device.
+let DB_NAME = 'assetInventoryDB';
+const STORE = 'assets';
+let db;
+
+const SETTINGS_STORE = 'settings';
+
+function openDB(){
+  return new Promise((resolve, reject)=>{
+    const req = indexedDB.open(DB_NAME, 2);
+    req.onupgradeneeded = (e)=>{
+      const _db = e.target.result;
+      if(!_db.objectStoreNames.contains(STORE)){
+        const store = _db.createObjectStore(STORE, {keyPath:'id', autoIncrement:true});
+        store.createIndex('tag', 'tag', {unique:false});
+      }
+      if(!_db.objectStoreNames.contains(SETTINGS_STORE)){
+        _db.createObjectStore(SETTINGS_STORE, {keyPath:'key'});
+      }
+    };
+    req.onsuccess = (e)=>{ db = e.target.result; resolve(db); };
+    req.onerror = (e)=> reject(e);
+  });
+}
+
+function getSetting(key){
+  return new Promise((resolve)=>{
+    const tx = db.transaction(SETTINGS_STORE, 'readonly');
+    const req = tx.objectStore(SETTINGS_STORE).get(key);
+    req.onsuccess = ()=> resolve(req.result ? req.result.value : '');
+    req.onerror = ()=> resolve('');
+  });
+}
+
+function setSetting(key, value){
+  return new Promise((resolve)=>{
+    const tx = db.transaction(SETTINGS_STORE, 'readwrite');
+    tx.objectStore(SETTINGS_STORE).put({key, value});
+    tx.oncomplete = ()=> resolve();
+  });
+}
+
+function dbAll(){
+  return new Promise((resolve)=>{
+    const tx = db.transaction(STORE, 'readonly');
+    const store = tx.objectStore(STORE);
+    const req = store.getAll();
+    req.onsuccess = ()=> resolve(req.result.sort((a,b)=> b.createdAt - a.createdAt));
+  });
+}
+
+function dbPut(asset){
+  return new Promise((resolve)=>{
+    const tx = db.transaction(STORE, 'readwrite');
+    const store = tx.objectStore(STORE);
+    const req = asset.id ? store.put(asset) : store.add(asset);
+    req.onsuccess = (e)=> resolve(e.target.result);
+  });
+}
+
+function dbDelete(id){
+  return new Promise((resolve)=>{
+    const tx = db.transaction(STORE, 'readwrite');
+    tx.objectStore(STORE).delete(id);
+    tx.oncomplete = ()=> resolve();
+  });
+}
+
+// ---------- App state ----------
+let assets = [];
+let currentEditId = null;
+let currentPhotos = [null, null, null, null]; // Blobs
+let currentCondition = '';
+
+const $ = (id)=> document.getElementById(id);
+
+function toast(msg){
+  const t = $('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(()=> t.classList.remove('show'), 1800);
+}
+
+// ---------- Rendering the list ----------
+async function refreshList(filter=''){
+  assets = await dbAll();
+  $('assetCount').textContent = assets.length;
+  const wrap = $('listWrap');
+  wrap.innerHTML = '';
+
+  const f = filter.trim().toLowerCase();
+  const filtered = !f ? assets : assets.filter(a =>
+    (a.tag||'').toLowerCase().includes(f) || (a.name||'').toLowerCase().includes(f)
+  );
+
+  $('emptyState').style.display = (assets.length === 0) ? 'block' : 'none';
+
+  filtered.forEach(a=>{
+    const card = document.createElement('div');
+    card.className = 'asset-card';
+    const firstPhoto = a.photos.find(p=>p);
+    const thumbSrc = firstPhoto ? URL.createObjectURL(firstPhoto) : '';
+    card.innerHTML = `
+      ${firstPhoto ? `<img class="asset-thumb" src="${thumbSrc}">` : `<div class="asset-thumb"></div>`}
+      <div class="asset-info">
+        <div class="asset-tag mono">${escapeHtml(a.tag || '—')}</div>
+        <div class="asset-name">${escapeHtml(a.name || 'بدون اسم')}</div>
+        <div class="asset-meta">${escapeHtml(a.category||'')}${a.category && a.condition ? ' · ' : ''}${escapeHtml(conditionLabel(a.condition))}${(a.building||a.location) ? ' · ' + escapeHtml([a.building,a.location].filter(Boolean).join(' - ')) : ''}</div>
+      </div>
+      <div class="asset-photos-count">${a.photos.filter(p=>p).length}/4 📷</div>
+    `;
+    card.addEventListener('click', ()=> openForm(a.id));
+    wrap.appendChild(card);
+  });
+}
+
+function escapeHtml(s){
+  return String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+const CONDITION_LABELS = {'Good':'جيد','New':'جديد','Fair':'متوسط','Needs Maintenance':'يحتاج صيانة'};
+function conditionLabel(v){ return CONDITION_LABELS[v] || v || ''; }
+
+// ---------- Form sheet ----------
+function renderPhotoGrid(){
+  const grid = $('photoGrid');
+  grid.innerHTML = '';
+  currentPhotos.forEach((blob, idx)=>{
+    const slot = document.createElement('div');
+    slot.className = 'photo-slot';
+    if(blob){
+      const url = URL.createObjectURL(blob);
+      slot.innerHTML = `<img src="${url}"><div class="remove-x" data-idx="${idx}">✕</div>`;
+      slot.querySelector('img').addEventListener('click', ()=> openLightbox(url));
+      slot.querySelector('.remove-x').addEventListener('click', (e)=>{
+        e.stopPropagation();
+        currentPhotos[idx] = null;
+        renderPhotoGrid();
+        updateAiButtonState();
+      });
+    } else {
+      slot.innerHTML = `<span class="plus">+</span>`;
+      slot.addEventListener('click', ()=> captureForSlot(idx));
+    }
+    grid.appendChild(slot);
+  });
+}
+
+let captureSlotIndex = null;
+function captureForSlot(idx){
+  captureSlotIndex = idx;
+  $('cameraInput').click();
+}
+$('cameraInput').addEventListener('change', (e)=>{
+  const file = e.target.files[0];
+  if(file && captureSlotIndex !== null){
+    currentPhotos[captureSlotIndex] = file;
+    renderPhotoGrid();
+    updateAiButtonState();
+  }
+  e.target.value = '';
+});
+
+function openLightbox(url){
+  $('lightboxImg').src = url;
+  $('lightbox').classList.add('open');
+}
+$('closeLightbox').addEventListener('click', ()=> $('lightbox').classList.remove('open'));
+
+function setCondition(v){
+  currentCondition = v;
+  document.querySelectorAll('.chip').forEach(c=>{
+    c.classList.toggle('active', c.dataset.v === v);
+  });
+}
+document.querySelectorAll('.chip').forEach(c=>{
+  c.addEventListener('click', ()=> setCondition(c.dataset.v));
+});
+
+async function nextTagNumber(){
+  const all = await dbAll();
+  let maxNum = 0;
+  let prefix = 'A-';
+  all.forEach(a=>{
+    const m = (a.tag||'').match(/^([A-Za-z\u0600-\u06FF]*-?)0*(\d+)$/);
+    if(m){
+      const num = parseInt(m[2], 10);
+      if(num > maxNum){ maxNum = num; prefix = m[1] || 'A-'; }
+    }
+  });
+  const next = String(maxNum + 1).padStart(4, '0');
+  $('f_tag').value = prefix + next;
+}
+$('nextTagBtn').addEventListener('click', nextTagNumber);
+
+async function openForm(id=null){
+  currentEditId = id;
+  currentPhotos = [null,null,null,null];
+  currentCondition = '';
+  $('moreToggle').classList.remove('open');
+  $('moreFields').classList.remove('open');
+
+  if(id){
+    const a = assets.find(x=>x.id===id);
+    $('formTitle').textContent = 'تعديل الأصل';
+    $('f_tag').value = a.tag || '';
+    $('f_category').value = a.category || '';
+    $('f_name').value = a.name || '';
+    $('f_building').value = a.building || '';
+    $('f_location').value = a.location || '';
+    $('f_catcode').value = a.catCode || '';
+    $('f_subcat').value = a.subCategory || '';
+    $('f_subcatcode').value = a.subCategoryCode || '';
+    $('f_brand').value = a.brand || '';
+    $('f_model').value = a.model || '';
+    $('f_sn').value = a.sn || '';
+    $('f_plateno').value = a.plateNo || '';
+    $('f_value').value = a.value || '';
+    $('f_notes').value = a.notes || '';
+    a.photos.forEach((p,i)=>{ if(i<4) currentPhotos[i] = p; });
+    setCondition(a.condition || '');
+    $('deleteLink').style.display = 'block';
+  } else {
+    $('formTitle').textContent = 'أصل جديد';
+    $('f_tag').value = '';
+    $('f_category').value = '';
+    $('f_name').value = '';
+    $('f_building').value = await getSetting('currentBuilding');
+    $('f_location').value = await getSetting('currentLocation');
+    $('f_catcode').value = '';
+    $('f_subcat').value = '';
+    $('f_subcatcode').value = '';
+    $('f_brand').value = '';
+    $('f_model').value = '';
+    $('f_sn').value = '';
+    $('f_plateno').value = '';
+    $('f_value').value = '';
+    $('f_notes').value = '';
+    setCondition('');
+    $('deleteLink').style.display = 'none';
+    await nextTagNumber();
+  }
+  renderPhotoGrid();
+  updateAiButtonState();
+  $('formSheet').classList.add('open');
+}
+
+function closeForm(){
+  $('formSheet').classList.remove('open');
+}
+$('closeFormBtn').addEventListener('click', closeForm);
+$('addBtn').addEventListener('click', ()=> openForm(null));
+
+$('saveBtn').addEventListener('click', async ()=>{
+  const tag = $('f_tag').value.trim();
+  if(!tag){
+    toast('الرجاء إدخال رقم الأصل');
+    return;
+  }
+  const hasPhoto = currentPhotos.some(p=>p);
+  if(!hasPhoto){
+    toast('أضف صورة واحدة على الأقل');
+    return;
+  }
+  const asset = {
+    tag,
+    category: $('f_category').value,
+    catCode: $('f_catcode').value.trim(),
+    subCategory: $('f_subcat').value.trim(),
+    subCategoryCode: $('f_subcatcode').value.trim(),
+    name: $('f_name').value.trim(),
+    brand: $('f_brand').value.trim(),
+    condition: currentCondition,
+    model: $('f_model').value.trim(),
+    sn: $('f_sn').value.trim(),
+    plateNo: $('f_plateno').value.trim(),
+    location: $('f_location').value.trim(),
+    building: $('f_building').value.trim(),
+    notes: $('f_notes').value.trim(),
+    value: $('f_value').value.trim(),
+    photos: currentPhotos,
+    createdAt: currentEditId ? (assets.find(a=>a.id===currentEditId)?.createdAt || Date.now()) : Date.now()
+  };
+  if(currentEditId){ asset.id = currentEditId; }
+  await dbPut(asset);
+  closeForm();
+  await refreshList($('searchBox').value);
+  toast('تم الحفظ');
+});
+
+$('deleteLink').addEventListener('click', async ()=>{
+  if(!currentEditId) return;
+  if(confirm('هل تريد حذف هذا الأصل نهائياً؟')){
+    await dbDelete(currentEditId);
+    closeForm();
+    await refreshList($('searchBox').value);
+    toast('تم الحذف');
+  }
+});
+
+$('searchBox').addEventListener('input', (e)=> refreshList(e.target.value));
+
+// ---------- Location session ----------
+function renderLocationBar(building, location){
+  const el = $('locText');
+  if(!building && !location){
+    el.innerHTML = '<span class="loc-empty">لا يوجد موقع محدد</span>';
+  } else {
+    el.innerHTML = `<b>${escapeHtml(building||'—')}</b> · ${escapeHtml(location||'—')}`;
+  }
+}
+
+async function loadLocationBar(){
+  const building = await getSetting('currentBuilding');
+  const location = await getSetting('currentLocation');
+  renderLocationBar(building, location);
+}
+
+$('setLocationBtn').addEventListener('click', async ()=>{
+  $('loc_building').value = await getSetting('currentBuilding');
+  $('loc_room').value = await getSetting('currentLocation');
+  $('locationSheet').classList.add('open');
+});
+$('closeLocationBtn').addEventListener('click', ()=> $('locationSheet').classList.remove('open'));
+$('saveLocationBtn').addEventListener('click', async ()=>{
+  const building = $('loc_building').value.trim();
+  const room = $('loc_room').value.trim();
+  await setSetting('currentBuilding', building);
+  await setSetting('currentLocation', room);
+  renderLocationBar(building, room);
+  $('locationSheet').classList.remove('open');
+  toast('تم تحديث الموقع الحالي');
+});
+
+// ---------- More fields toggle ----------
+$('moreToggle').addEventListener('click', ()=>{
+  $('moreToggle').classList.toggle('open');
+  $('moreFields').classList.toggle('open');
+});
+
+// ---------- Session & license ----------
+const SESSION_KEY = 'ai_session_v1';
+const DEVICE_KEY = 'ai_device_v1';
+let session = null; // {token, license, lastCheck}
+
+function lsGet(k){ try{ return JSON.parse(localStorage.getItem(k) || 'null'); }catch{ return null; } }
+function lsSet(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch{} }
+function lsDel(k){ try{ localStorage.removeItem(k); }catch{} }
+
+function deviceId(){
+  let id = lsGet(DEVICE_KEY);
+  if(!id){
+    id = (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random().toString(16).slice(2));
+    lsSet(DEVICE_KEY, id);
+  }
+  return id;
+}
+
+function tokenPayload(token){
+  try{
+    const b = token.split('.')[0].replace(/-/g,'+').replace(/_/g,'/');
+    const txt = decodeURIComponent(escape(atob(b + '==='.slice((b.length + 3) % 4))));
+    return JSON.parse(txt);
+  }catch{ return null; }
+}
+
+async function api(path, body, token){
+  const headers = {'Content-Type':'application/json'};
+  if(token) headers.Authorization = 'Bearer ' + token;
+  const r = await fetch(path, {method:'POST', headers, body: JSON.stringify(body || {})});
+  let data = {};
+  try{ data = await r.json(); }catch{}
+  return {status: r.status, ...data};
+}
+
+// Codes that mean the server has definitively refused this session (not a network issue).
+const HARD_FAIL = ['user_disabled','no_license','license_disabled','license_expired','device_unknown','device_mismatch','session_expired','bad_credentials'];
+
+function showLogin(message){
+  $('loginScreen').classList.remove('hidden', 'booting');
+  $('loginErr').textContent = message || '';
+  $('lg_pass').value = '';
+}
+
+async function enterApp(){
+  const p = tokenPayload(session.token);
+  DB_NAME = 'assetInventoryDB_' + p.u;
+  if(db){ try{ db.close(); }catch{} db = null; }
+  await openDB();
+  $('loginScreen').classList.add('hidden');
+  renderLicenseBanner();
+  await refreshList($('searchBox').value);
+  await loadLocationBar();
+}
+
+async function doLogout(message){
+  session = null;
+  lsDel(SESSION_KEY);
+  if(db){ try{ db.close(); }catch{} db = null; }
+  document.querySelectorAll('.sheet.open').forEach(s=> s.classList.remove('open'));
+  $('listWrap').innerHTML = '';
+  showLogin(message);
+}
+
+async function verifyOnline(){
+  if(!session || !navigator.onLine) return false;
+  try{
+    const r = await api('/api/refresh', {deviceId: deviceId()}, session.token);
+    if(r.ok){
+      session = {token: r.token, license: r.license, lastCheck: Date.now()};
+      lsSet(SESSION_KEY, session);
+      renderLicenseBanner();
+      return true;
+    }
+    if(HARD_FAIL.includes(r.code)){ await doLogout(r.message); }
+  }catch(e){ /* offline or server unreachable: keep working within grace */ }
+  return false;
+}
+
+function daysLeft(dateStr){
+  if(!dateStr) return null;
+  return Math.ceil((new Date(dateStr + 'T23:59:59Z').getTime() - Date.now()) / 86400000);
+}
+
+function renderLicenseBanner(){
+  const el = $('licBanner');
+  if(!session){ el.classList.remove('show'); return; }
+  const msgs = [];
+  const d = daysLeft(session.license.expiresAt);
+  if(d !== null && d <= 14) msgs.push(`تنتهي الرخصة خلال ${d} يوم. تواصل مع المزوّد للتجديد.`);
+  const p = tokenPayload(session.token);
+  const g = Math.ceil((p.exp - Date.now()) / 86400000);
+  if(g <= 2) msgs.push(`اتصل بالإنترنت خلال ${g} يوم لتجديد التحقق وإلا سيُطلب منك تسجيل الدخول.`);
+  el.textContent = msgs.join(' ');
+  el.classList.toggle('show', msgs.length > 0);
+}
+
+$('loginForm').addEventListener('submit', async (e)=>{
+  e.preventDefault();
+  const username = $('lg_user').value.trim();
+  const password = $('lg_pass').value;
+  if(!username || !password){ $('loginErr').textContent = 'أدخل اسم المستخدم وكلمة المرور'; return; }
+  if(!navigator.onLine){ $('loginErr').textContent = 'تسجيل الدخول يحتاج اتصالًا بالإنترنت'; return; }
+  const btn = $('loginBtn');
+  btn.disabled = true; btn.textContent = 'جارٍ التحقق...';
+  try{
+    const r = await api('/api/login', {username, password, deviceId: deviceId()});
+    if(!r.ok){ $('loginErr').textContent = r.message || 'تعذّر تسجيل الدخول'; return; }
+    session = {token: r.token, license: r.license, lastCheck: Date.now()};
+    lsSet(SESSION_KEY, session);
+    await enterApp();
+    toast('أهلًا ' + (r.license.displayName || r.license.username));
+  }catch(err){
+    $('loginErr').textContent = 'تعذّر الاتصال بالخادم. تحقق من الإنترنت';
+  }finally{
+    btn.disabled = false; btn.textContent = 'دخول';
+  }
+});
+
+// ---------- Account sheet ----------
+const fmtDate = (ms)=> ms ? new Date(ms).toISOString().slice(0,10) : '—';
+function fillAccount(){
+  if(!session) return;
+  const L = session.license, p = tokenPayload(session.token);
+  $('acc_user').textContent = L.displayName ? `${L.displayName} (${L.username})` : L.username;
+  $('acc_customer').textContent = L.customer || '—';
+  $('acc_expiry').textContent = L.expiresAt || 'غير محدد';
+  $('acc_ai').textContent = L.aiEnabled ? 'مفعّل' : 'غير مفعّل';
+  $('acc_checked').textContent = fmtDate(session.lastCheck);
+  $('acc_grace').textContent = fmtDate(p.exp);
+}
+$('settingsBtn').addEventListener('click', ()=>{ fillAccount(); $('settingsSheet').classList.add('open'); });
+$('closeSettingsBtn').addEventListener('click', ()=> $('settingsSheet').classList.remove('open'));
+$('checkNowBtn').addEventListener('click', async ()=>{
+  if(!navigator.onLine){ toast('لا يوجد اتصال بالإنترنت'); return; }
+  const ok = await verifyOnline();
+  if(ok){ fillAccount(); toast('تم التحقق من الرخصة'); }
+  else if(session){ toast('تعذّر الوصول للخادم، حاول لاحقًا'); }
+});
+$('logoutBtn').addEventListener('click', async ()=>{
+  if(confirm('تسجيل الخروج؟ بياناتك تبقى محفوظة على هذا الجهاز، لكن تحتاج إنترنت للدخول مرة أخرى.')){
+    await doLogout('');
+  }
+});
+window.addEventListener('online', ()=> verifyOnline());
+
+// ---------- AI description (through our server) ----------
+function updateAiButtonState(){
+  const hasPhoto = currentPhotos.some(p=>p);
+  const aiOn = !!(session && session.license.aiEnabled);
+  const btn = $('aiSuggestBtn');
+  btn.disabled = !aiOn || !hasPhoto;
+  $('aiHint').textContent = !aiOn
+    ? 'ميزة الذكاء الاصطناعي غير مفعّلة في رخصتك'
+    : (!hasPhoto ? 'أضف صورة واحدة على الأقل أولاً' : 'تحتاج اتصالًا بالإنترنت');
+}
+
+// Downscale before upload: phone photos are often 4-8 MB, which exceeds server limits and costs more.
+function resizeForAI(blob, maxSide=1024, quality=0.82){
+  return new Promise((resolve, reject)=>{
+    const url = URL.createObjectURL(blob);
+    const img = new Image();
+    img.onload = ()=>{
+      const scale = Math.min(1, maxSide / Math.max(img.width, img.height));
+      const w = Math.round(img.width * scale), h = Math.round(img.height * scale);
+      const c = document.createElement('canvas');
+      c.width = w; c.height = h;
+      c.getContext('2d').drawImage(img, 0, 0, w, h);
+      URL.revokeObjectURL(url);
+      resolve(c.toDataURL('image/jpeg', quality).split(',')[1]);
+    };
+    img.onerror = (e)=>{ URL.revokeObjectURL(url); reject(e); };
+    img.src = url;
+  });
+}
+
+$('aiSuggestBtn').addEventListener('click', async ()=>{
+  const photo = currentPhotos.find(p=>p);
+  if(!photo || !session) return;
+  if(!navigator.onLine){ toast('هذه الميزة تحتاج اتصالًا بالإنترنت'); return; }
+
+  const btn = $('aiSuggestBtn');
+  btn.disabled = true;
+  btn.classList.add('loading');
+  btn.textContent = 'جارٍ التحليل...';
+  try{
+    const image = await resizeForAI(photo);
+    const r = await api('/api/ai-describe', {image, mediaType:'image/jpeg'}, session.token);
+    if(r.ok && r.text){
+      $('f_name').value = r.text;
+      toast(r.remaining != null ? `تم اقتراح وصف (متبقٍ ${r.remaining} هذا الشهر)` : 'تم اقتراح وصف — تقدر تعدّله قبل الحفظ');
+    } else if(HARD_FAIL.includes(r.code)){
+      await doLogout(r.message);
+    } else {
+      toast(r.message || 'ما قدرنا نولّد وصف، جرّب مرة ثانية');
+    }
+  }catch(err){
+    console.error(err);
+    toast('فشل الاتصال بالخادم — تحقق من الإنترنت');
+  }finally{
+    btn.classList.remove('loading');
+    btn.textContent = '✨ اقترح وصف بالذكاء الاصطناعي';
+    updateAiButtonState();
+  }
+});
+
+// ---------- Export ----------
+$('exportBtn').addEventListener('click', async ()=>{
+  const all = await dbAll();
+  if(all.length === 0){
+    toast('لا توجد أصول لتصديرها بعد');
+    return;
+  }
+  $('exportBtn').textContent = 'جارٍ التصدير...';
+  $('exportBtn').disabled = true;
+
+  try{
+    // Build Excel sheet
+    const rows = all.map(a=>({
+      'Barcode': a.tag || '',
+      'Category Code': a.catCode || '',
+      'Category Name': a.category || '',
+      'Sub Category Code': a.subCategoryCode || '',
+      'Sub Category Name': a.subCategory || '',
+      'Description': a.name || '',
+      'Brand': a.brand || '',
+      'Condition': a.condition || '',
+      'Model': a.model || '',
+      'SN': a.sn || '',
+      'PlateNo': a.plateNo || '',
+      'Location': a.location || '',
+      'Building  Id': a.building || '',
+      'Remarks': a.notes || '',
+      'Value': a.value ? Number(a.value) || a.value : ''
+    }));
+    const ws = XLSX.utils.json_to_sheet(rows);
+    ws['!cols'] = [{wch:14},{wch:12},{wch:16},{wch:14},{wch:16},{wch:30},{wch:12},{wch:10},{wch:12},{wch:14},{wch:10},{wch:12},{wch:10},{wch:22},{wch:10}];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'جرد الأصول');
+    const xlsxData = XLSX.write(wb, {bookType:'xlsx', type:'array'});
+
+    // Build ZIP with excel + photos
+    const zip = new JSZip();
+    zip.file('جرد_الأصول.xlsx', xlsxData);
+    const imgFolder = zip.folder('الصور');
+    for(const a of all){
+      let n = 1;
+      for(const p of a.photos){
+        if(p){
+          const safeTag = (a.tag || 'اصل').replace(/[\\/:*?"<>|]/g, '-');
+          imgFolder.file(`${safeTag}-${n}.jpg`, p);
+          n++;
+        }
+      }
+    }
+    const zipBlob = await zip.generateAsync({type:'blob'});
+    const url = URL.createObjectURL(zipBlob);
+    const a = document.createElement('a');
+    const dateStr = new Date().toISOString().slice(0,10);
+    a.href = url;
+    a.download = `جرد_الأصول_${dateStr}.zip`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    toast('تم إنشاء ملف التصدير');
+  } catch(err){
+    console.error(err);
+    toast('حدث خطأ أثناء التصدير');
+  } finally {
+    $('exportBtn').textContent = 'تصدير (Excel + صور)';
+    $('exportBtn').disabled = false;
+  }
+});
+
+// ---------- Init ----------
+if('serviceWorker' in navigator){
+  window.addEventListener('load', ()=> navigator.serviceWorker.register('/sw.js').catch(()=>{}));
+}
+(async function boot(){
+  session = lsGet(SESSION_KEY);
+  const p = session && session.token ? tokenPayload(session.token) : null;
+  if(p && p.exp > Date.now() && p.dev === deviceId()){
+    await enterApp();
+    verifyOnline();
+  } else {
+    const had = !!session;
+    session = null; lsDel(SESSION_KEY);
+    showLogin(had ? 'انتهت مهلة العمل دون اتصال. سجّل الدخول مجددًا (بياناتك محفوظة على الجهاز).' : '');
+  }
+})();
+</script>
+
+</body>
+</html>

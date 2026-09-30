@@ -1,0 +1,14 @@
+{
+  "name": "جرد الأصول",
+  "short_name": "جرد الأصول",
+  "lang": "ar",
+  "dir": "rtl",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#F5F3EF",
+  "theme_color": "#F5F3EF",
+  "icons": [
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}
