@@ -1,6 +1,17 @@
-import { err, json, readBody, bearer, verifyToken, loadActive, getJSON, setJSON, usageKey } from '../lib/common.mjs';
+import { err, json, readBody, bearer, verifyToken, loadActive, getJSON, setJSON, usageKey, normSettings } from '../lib/common.mjs';
 
-const PROMPT = 'هذه صورة قطعة أثاث أو تجهيزات مكتبية ضمن عملية جرد أصول. اكتب وصفاً موجزاً بالعربية (جملة واحدة، أقل من ١٥ كلمة) يذكر نوع القطعة، اللون أو الخامة الظاهرة، وأي تفاصيل مميزة. أعد الوصف فقط بدون أي مقدمة أو علامات اقتباس.';
+// Asset description: at most 5 words, in the language the admin set for this user.
+const MAX_WORDS = 5;
+const PROMPTS = {
+  ar: 'هذه صورة أصل (أثاث أو أجهزة أو تجهيزات مكتبية) ضمن عملية جرد. اكتب وصفًا بالعربية فقط، من خمس كلمات كحد أقصى، يبدأ بنوع القطعة ثم أهم صفة ظاهرة (اللون أو الخامة). مثال: كرسي مكتب جلد أسود. لا تستخدم أي كلمة إنجليزية. أعد الوصف فقط بلا مقدمة ولا علامات ترقيم ولا علامات اقتباس.',
+  en: 'This is a photo of an asset (furniture, equipment or office fixture) in a fixed-asset inventory. Write a description in English only, five words maximum, starting with the item type followed by its most visible attribute (colour or material). Example: Black leather office chair. Do not use any Arabic. Reply with the description only, no preamble, punctuation or quotation marks.'
+};
+const SCAN_PROMPT = 'This photo shows a barcode or QR code on an asset tag. Read the asset number: decode it if you can, otherwise read the human-readable digits/characters printed next to or under the barcode. Return exactly what is printed, keeping letters, digits and dashes. If nothing is clearly readable, return an empty value. Do not guess. Reply with JSON only: {"code":""}';
+
+function clampWords(text, max) {
+  const clean = String(text || '').replace(/["'«»“”.,،؛:!?]/g, ' ').replace(/\s+/g, ' ').trim();
+  return clean.split(' ').filter(Boolean).slice(0, max).join(' ');
+}
 const LABEL_PROMPT = 'This is a photo of an equipment nameplate, rating label, or sticker, taken during a fixed-asset inventory. Extract the manufacturer/brand, the model number, and the serial number exactly as printed (keep letters, digits, dashes and case as shown; the serial is usually marked S/N, SN, Serial No, or SER). Leave a field empty if it is not clearly visible. Do not guess. Reply with JSON only, no other text: {"brand":"","model":"","sn":""}';
 
 function parseLabel(text) {
@@ -22,11 +33,13 @@ export default async (req) => {
 
   const res = await loadActive(payload.u, payload.dev);
   if (res.error) return res.error;
-  const { license } = res;
+  const { license, user } = res;
+  const lang = normSettings(user.settings).lang;
   if (license.aiEnabled === false) return err(403, 'ai_disabled', 'ميزة الذكاء الاصطناعي غير مفعّلة في رخصتك');
 
   const { image, mediaType, mode } = await readBody(req);
   const isLabel = mode === 'label';
+  const isScan = mode === 'scan';
   if (!image || typeof image !== 'string') return err(400, 'no_image', 'لا توجد صورة');
   if (image.length > 4_000_000) return err(413, 'too_large', 'الصورة كبيرة جدًا');
   const type = ALLOWED_TYPES.includes(mediaType) ? mediaType : 'image/jpeg';
@@ -46,10 +59,10 @@ export default async (req) => {
     headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
     body: JSON.stringify({
       model: process.env.AI_MODEL || 'claude-haiku-4-5-20251001',
-      max_tokens: isLabel ? 200 : 150,
+      max_tokens: isLabel ? 200 : (isScan ? 120 : 60),
       messages: [{ role: 'user', content: [
         { type: 'image', source: { type: 'base64', media_type: type, data: image } },
-        { type: 'text', text: isLabel ? LABEL_PROMPT : PROMPT }
+        { type: 'text', text: isLabel ? LABEL_PROMPT : (isScan ? SCAN_PROMPT : PROMPTS[lang]) }
       ] }]
     })
   });
@@ -67,7 +80,13 @@ export default async (req) => {
 
   const remaining = cap > 0 ? cap - usage.count : null;
   if (isLabel) return json(200, { ok: true, fields: parseLabel(text), remaining });
-  return json(200, { ok: true, text, remaining });
+  if (isScan) {
+    let code = '';
+    const m = text.match(/\{[\s\S]*\}/);
+    if (m) { try { code = String(JSON.parse(m[0]).code || '').trim().slice(0, 80); } catch {} }
+    return json(200, { ok: true, code, remaining });
+  }
+  return json(200, { ok: true, text: clampWords(text, MAX_WORDS), lang, remaining });
 };
 
 export const config = { path: '/api/ai-describe' };

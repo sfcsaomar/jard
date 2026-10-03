@@ -100,13 +100,30 @@ export async function loadActive(username, deviceId, { registerDevice = false } 
   return { user, license };
 }
 
+// ---------- per-user field settings ----------
+// Fields the admin can make mandatory for a user. The asset number and at least
+// one photo are always mandatory; minPhotos (1-4) raises the photo minimum.
+export const REQUIRABLE_FIELDS = [
+  'category', 'name', 'condition', 'building', 'location',
+  'catcode', 'subcat', 'subcatcode', 'brand', 'model', 'sn', 'plateno', 'value', 'notes'
+];
+export function normSettings(s) {
+  const lang = s?.lang === 'en' ? 'en' : 'ar';
+  const required = Array.isArray(s?.required)
+    ? [...new Set(s.required.filter((f) => REQUIRABLE_FIELDS.includes(f)))]
+    : [];
+  const minPhotos = Math.min(4, Math.max(1, Math.floor(Number(s?.minPhotos) || 1)));
+  return { lang, required, minPhotos };
+}
+
 export function publicLicense(license, user) {
   return {
     customer: license.customer,
     expiresAt: license.expiresAt || null,
     aiEnabled: license.aiEnabled !== false,
     username: user.username,
-    displayName: user.displayName || user.username
+    displayName: user.displayName || user.username,
+    settings: normSettings(user.settings)
   };
 }
 

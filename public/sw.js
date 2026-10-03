@@ -1,5 +1,5 @@
 // Offline support: the app shell and libraries are cached so the app opens without internet.
-const CACHE = 'asset-inv-v3';
+const CACHE = 'asset-inv-v4';
 const SHELL = [
   '/',
   '/index.html',

@@ -70,7 +70,17 @@
   .scanner-top .icon-btn{color:#fff;}
   #scanReader{flex:1; width:100%; overflow:hidden;}
   #scanReader video{width:100% !important; height:100% !important; object-fit:cover;}
-  .scanner-hint{color:#ddd; text-align:center; font-size:13px; padding:12px 16px 22px; line-height:1.6;}
+  .scanner-hint{color:#ddd; text-align:center; font-size:13px; padding:10px 16px 6px; line-height:1.6;}
+  .scanner-controls{display:flex; gap:10px; align-items:center; justify-content:center; padding:6px 16px 22px; flex-wrap:wrap;}
+  .scanner-controls button{
+    border:1px solid #555; background:#1c1c1c; color:#fff; border-radius:10px; padding:10px 14px;
+    font-family:inherit; font-size:13.5px; font-weight:600; cursor:pointer;
+  }
+  .scanner-controls button.primary{background:var(--tag); border-color:var(--tag);}
+  .scanner-controls button.on{background:#fff; color:#000;}
+  .zoom-row{display:none; align-items:center; gap:8px; color:#ddd; font-size:12.5px; width:100%; justify-content:center;}
+  .zoom-row input{width:55%;}
+  #scanFileReader{display:none;}
   .install-card{
     background:#FFF7F1; border:1px solid #F0CDB9; border-radius:12px; padding:12px; margin-bottom:12px;
     font-size:13px; line-height:1.7; display:none;
@@ -167,6 +177,19 @@
     outline:2px solid var(--tag); outline-offset:1px;
   }
   .field textarea{resize:vertical; min-height:70px;}
+  .field textarea.desc-box{min-height:52px; resize:none; overflow:hidden; line-height:1.6;}
+  .field-meta{display:flex; justify-content:space-between; gap:10px; font-size:12px; color:var(--ink-soft); margin-top:5px;}
+  .field-meta .lang-warn{color:var(--warn);}
+  .req-star{color:var(--warn); font-weight:700; margin-inline-start:3px;}
+  .field.invalid > input, .field.invalid > textarea, .field.invalid > select,
+  .two-col > div.invalid input, .field.invalid .condition-chips, .field.invalid .photo-grid{
+    outline:2px solid var(--warn); outline-offset:2px; border-radius:10px;
+  }
+  .field.invalid > label, .two-col > div.invalid > label{color:var(--warn);}
+  .asset-card.flagged{opacity:.6; border-style:dashed;}
+  .flag-badge{display:inline-block; font-size:11.5px; font-weight:600; color:var(--warn); background:#FBEDE5; border-radius:999px; padding:1px 8px; margin-inline-start:6px;}
+  .flag-note{background:#FBEDE5; border:1px solid #F0CDB9; color:var(--warn); border-radius:10px; padding:10px 12px; font-size:13px; line-height:1.6; margin-bottom:16px; display:none;}
+  .flag-note.show{display:block;}
   .tag-input-row{display:flex; gap:8px;}
   .tag-input-row input{flex:1;}
   .btn-next{
@@ -229,8 +252,8 @@
   .toast{
     position:fixed; bottom:100px; left:50%; transform:translateX(-50%);
     background:var(--ink); color:var(--bg); padding:11px 18px; border-radius:10px;
-    font-size:13.5px; z-index:200; opacity:0; transition:opacity 0.25s; pointer-events:none;
-    white-space:nowrap;
+    font-size:13.5px; z-index:500; opacity:0; transition:opacity 0.25s; pointer-events:none;
+    width:max-content; max-width:calc(100% - 32px); text-align:center; line-height:1.6;
   }
   .toast.show{opacity:1;}
 
@@ -295,7 +318,7 @@
   <div class="topbar-row">
     <div class="brand">جرد الأصول</div>
     <div style="display:flex; align-items:center; gap:10px;">
-      <div class="count-pill"><b id="assetCount">0</b> أصل مسجّل</div>
+      <div class="count-pill"><b id="assetCount">0</b> أصل مسجّل<span id="flaggedCount"></span></div>
       <button class="icon-btn" id="settingsBtn" style="font-size:19px;" title="الحساب والرخصة">⚙</button>
     </div>
   </div>
@@ -339,6 +362,8 @@
   </div>
   <div class="sheet-body">
 
+    <div class="flag-note" id="flagNote"></div>
+
     <div class="field">
       <label>رقم الأصل</label>
       <div class="tag-input-row">
@@ -350,7 +375,7 @@
     </div>
 
     <div class="field">
-      <label>الصور (٣-٤ صور من كل الجوانب)</label>
+      <label id="photoLabel">الصور (٣-٤ صور من كل الجوانب)</label>
       <div class="photo-grid" id="photoGrid"></div>
       <div class="photo-hint">اضغط على أي مربع لالتقاط صورة بالكاميرا. اضغط على الصورة لإعادة التقاطها.</div>
     </div>
@@ -370,7 +395,8 @@
 
     <div class="field">
       <label>الوصف / الاسم</label>
-      <input type="text" id="f_name" placeholder="مثال: طاولة اجتماعات خشب بني، ٦ مقاعد">
+      <textarea id="f_name" class="desc-box" rows="2" maxlength="265" placeholder="مثال: طاولة اجتماعات خشب بني"></textarea>
+      <div class="field-meta"><span class="lang-warn" id="langWarn"></span><span class="mono" id="descCount">0/265</span></div>
       <button type="button" class="btn-ai" id="aiSuggestBtn">✨ اقترح وصف بالذكاء الاصطناعي</button>
       <div class="ai-hint" id="aiHint"></div>
     </div>
@@ -452,7 +478,7 @@
       <textarea id="f_notes" placeholder="أي تفاصيل إضافية..."></textarea>
     </div>
 
-    <div class="delete-link" id="deleteLink" style="display:none;">حذف هذا الأصل</div>
+    <div class="delete-link" id="deleteLink" style="display:none;">وسم هذا الأصل للحذف</div>
   </div>
 
   <div class="sheet-footer">
@@ -497,6 +523,7 @@
     <div class="info-row"><span>العميل</span><span id="acc_customer">—</span></div>
     <div class="info-row"><span>تنتهي الرخصة</span><span id="acc_expiry" class="mono">—</span></div>
     <div class="info-row"><span>الذكاء الاصطناعي</span><span id="acc_ai">—</span></div>
+    <div class="info-row"><span>لغة الإدخال</span><span id="acc_lang">—</span></div>
     <div class="info-row"><span>آخر تحقق من الخادم</span><span id="acc_checked" class="mono">—</span></div>
     <div class="info-row"><span>حماية البيانات على الجهاز</span><span id="acc_storage">—</span></div>
     <div class="photo-hint" style="margin-top:14px;">
@@ -530,8 +557,15 @@
     <span style="width:30px;"></span>
   </div>
   <div id="scanReader"></div>
-  <div class="scanner-hint" id="scanHint">وجّه الكاميرا إلى الباركود وأبقِ الهاتف ثابتًا</div>
+  <div class="scanner-hint" id="scanHint"></div>
+  <div class="scanner-controls">
+    <div class="zoom-row" id="zoomRow"><span>تقريب</span><input type="range" id="zoomSlider" min="1" max="1" step="0.1" value="1"></div>
+    <button type="button" id="torchBtn" style="display:none;">🔦 الفلاش</button>
+    <button type="button" class="primary" id="scanPhotoBtn">📷 صوّر الباركود</button>
+  </div>
 </div>
+<div id="scanFileReader"></div>
+<input type="file" accept="image/*" capture="environment" id="scanPhotoInput" style="display:none;">
 
 <div class="toast" id="toast"></div>
 
@@ -623,13 +657,16 @@ function toast(msg){
   const t = $('toast');
   t.textContent = msg;
   t.classList.add('show');
-  setTimeout(()=> t.classList.remove('show'), 1800);
+  clearTimeout(toast._t);
+  toast._t = setTimeout(()=> t.classList.remove('show'), Math.max(1800, String(msg).length * 55));
 }
 
 // ---------- Rendering the list ----------
 async function refreshList(filter=''){
   assets = await dbAll();
-  $('assetCount').textContent = assets.length;
+  const flaggedCount = assets.filter(isFlagged).length;
+  $('assetCount').textContent = assets.length - flaggedCount;
+  $('flaggedCount').textContent = flaggedCount ? ` · ${flaggedCount} للحذف` : '';
   const wrap = $('listWrap');
   wrap.innerHTML = '';
 
@@ -643,13 +680,13 @@ async function refreshList(filter=''){
 
   filtered.forEach(a=>{
     const card = document.createElement('div');
-    card.className = 'asset-card';
+    card.className = 'asset-card' + (isFlagged(a) ? ' flagged' : '');
     const firstPhoto = a.photos.find(p=>p);
     const thumbSrc = firstPhoto ? URL.createObjectURL(firstPhoto) : '';
     card.innerHTML = `
       ${firstPhoto ? `<img class="asset-thumb" src="${thumbSrc}">` : `<div class="asset-thumb"></div>`}
       <div class="asset-info">
-        <div class="asset-tag mono">${escapeHtml(a.tag || '—')}</div>
+        <div class="asset-tag mono">${escapeHtml(a.tag || '—')}${isFlagged(a) ? '<span class="flag-badge">مطلوب حذفه</span>' : ''}</div>
         <div class="asset-name">${escapeHtml(a.name || 'بدون اسم')}</div>
         <div class="asset-meta">${escapeHtml(a.category||'')}${a.category && a.condition ? ' · ' : ''}${escapeHtml(conditionLabel(a.condition))}${(a.building||a.location) ? ' · ' + escapeHtml([a.building,a.location].filter(Boolean).join(' - ')) : ''}</div>
       </div>
@@ -659,6 +696,8 @@ async function refreshList(filter=''){
     wrap.appendChild(card);
   });
 }
+
+const isFlagged = (a)=> !!(a && a.deleteFlag);
 
 function escapeHtml(s){
   return String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -787,6 +826,11 @@ async function openForm(id=null){
     currentLabel = a.labelPhoto || null;
     setCondition(a.condition || '');
     $('deleteLink').style.display = 'block';
+    $('deleteLink').textContent = isFlagged(a) ? 'إلغاء وسم الحذف' : 'وسم هذا الأصل للحذف';
+    $('flagNote').innerHTML = isFlagged(a)
+      ? `<b>هذا الأصل موسوم للحذف.</b> السبب: ${escapeHtml(a.deleteFlag.reason || '—')} · ${escapeHtml(fmtDate(a.deleteFlag.at))}<br>لن يظهر في ورقة الجرد الرئيسية عند التصدير، بل في ورقة «مطلوب حذفها».`
+      : '';
+    $('flagNote').classList.toggle('show', isFlagged(a));
     $('copyPrevBtn').style.visibility = 'hidden';
   } else {
     $('formTitle').textContent = 'أصل جديد';
@@ -807,6 +851,7 @@ async function openForm(id=null){
     currentLabel = null;
     setCondition('');
     $('deleteLink').style.display = 'none';
+    $('flagNote').classList.remove('show');
     $('copyPrevBtn').style.visibility = assets.length ? 'visible' : 'hidden';
     await nextTagNumber();
   }
@@ -815,6 +860,9 @@ async function openForm(id=null){
   if(id && (a_hasMore(id))){ $('moreToggle').classList.add('open'); $('moreFields').classList.add('open'); }
   renderPhotoGrid();
   updateAiButtonState();
+  applyFieldSettings();
+  clearInvalid();
+  updateDescMeta();
   $('formSheet').classList.add('open');
 }
 
@@ -830,11 +878,7 @@ $('saveBtn').addEventListener('click', async ()=>{
     toast('الرجاء إدخال رقم الأصل');
     return;
   }
-  const hasPhoto = currentPhotos.some(p=>p);
-  if(!hasPhoto){
-    toast('أضف صورة واحدة على الأقل');
-    return;
-  }
+  if(!validateRequired()) return;
   const dup = findDuplicate(tag);
   if(dup && !confirm(`رقم الأصل ${tag} مسجّل مسبقًا (${dup.name || 'بدون اسم'}). هل تريد الحفظ رغم التكرار؟`)){
     return;
@@ -845,7 +889,7 @@ $('saveBtn').addEventListener('click', async ()=>{
     catCode: $('f_catcode').value.trim(),
     subCategory: $('f_subcat').value.trim(),
     subCategoryCode: $('f_subcatcode').value.trim(),
-    name: $('f_name').value.trim(),
+    name: $('f_name').value.trim().slice(0, DESC_MAX),
     brand: $('f_brand').value.trim(),
     condition: currentCondition,
     model: $('f_model').value.trim(),
@@ -857,6 +901,7 @@ $('saveBtn').addEventListener('click', async ()=>{
     value: $('f_value').value.trim(),
     photos: currentPhotos,
     labelPhoto: currentLabel,
+    deleteFlag: currentEditId ? (assets.find(a=>a.id===currentEditId)?.deleteFlag || null) : null,
     createdAt: currentEditId ? (assets.find(a=>a.id===currentEditId)?.createdAt || Date.now()) : Date.now()
   };
   if(currentEditId){ asset.id = currentEditId; }
@@ -867,18 +912,138 @@ $('saveBtn').addEventListener('click', async ()=>{
   toast('تم الحفظ');
 });
 
+// Deleting is not allowed in the field. A wrong entry is flagged with a reason instead;
+// the export lists flagged assets in a separate sheet so the client decides.
 $('deleteLink').addEventListener('click', async ()=>{
   if(!currentEditId) return;
-  if(confirm('هل تريد حذف هذا الأصل نهائياً؟')){
-    await dbDelete(currentEditId);
+  const a = assets.find(x=>x.id===currentEditId);
+  if(!a) return;
+  if(isFlagged(a)){
+    if(!confirm('إلغاء وسم الحذف وإعادة الأصل إلى قائمة الجرد؟')) return;
+    a.deleteFlag = null;
+    await dbPut(a);
     await setSetting('lastChangeAt', Date.now());
     closeForm();
     await refreshList($('searchBox').value);
-    toast('تم الحذف');
+    toast('أُلغي وسم الحذف');
+    return;
   }
+  let reason = prompt('سبب وسم هذا الأصل للحذف (إجباري)، مثل: إدخال مكرر، رقم خاطئ:');
+  if(reason === null) return;
+  reason = reason.trim();
+  if(!reason){ toast('السبب إجباري لوسم الأصل للحذف'); return; }
+  a.deleteFlag = {reason: reason.slice(0, 200), at: Date.now()};
+  await dbPut(a);
+  await setSetting('lastChangeAt', Date.now());
+  closeForm();
+  await refreshList($('searchBox').value);
+  toast('وُسم الأصل للحذف');
 });
 
 $('searchBox').addEventListener('input', (e)=> refreshList(e.target.value));
+
+// ---------- Per-user entry settings (set by the admin) ----------
+const DESC_MAX = 265;
+// key -> [element id, label, inside "more details"?]
+const FIELD_DEFS = {
+  category:   ['f_category', 'الفئة', false],
+  name:       ['f_name', 'الوصف', false],
+  condition:  ['conditionChips', 'الحالة', false],
+  building:   ['f_building', 'رقم المبنى', false],
+  location:   ['f_location', 'الموقع / الغرفة', false],
+  catcode:    ['f_catcode', 'كود الفئة', true],
+  subcat:     ['f_subcat', 'الفئة الفرعية', true],
+  subcatcode: ['f_subcatcode', 'كود الفئة الفرعية', true],
+  brand:      ['f_brand', 'الماركة', true],
+  model:      ['f_model', 'الموديل', true],
+  sn:         ['f_sn', 'الرقم التسلسلي', true],
+  plateno:    ['f_plateno', 'رقم اللوحة', true],
+  value:      ['f_value', 'القيمة', true],
+  notes:      ['f_notes', 'الملاحظات', false]
+};
+function userSettings(){
+  const st = (session && session.license && session.license.settings) || {};
+  return {
+    lang: st.lang === 'en' ? 'en' : 'ar',
+    required: Array.isArray(st.required) ? st.required.filter(k=> FIELD_DEFS[k]) : [],
+    minPhotos: Math.min(4, Math.max(1, Number(st.minPhotos) || 1))
+  };
+}
+// The label of a field: the <label> right before the input, or the field's first label.
+function fieldWrap(key){
+  const el = $(FIELD_DEFS[key][0]);
+  return el.closest('.two-col > div') || el.closest('.field');
+}
+function applyFieldSettings(){
+  const st = userSettings();
+  document.querySelectorAll('#formSheet .req-star').forEach(x=> x.remove());
+  $('photoLabel').textContent = st.minPhotos > 1
+    ? `الصور (${st.minPhotos} على الأقل من جوانب مختلفة)`
+    : 'الصور (٣-٤ صور من كل الجوانب)';
+
+  const star = ()=>{ const s = document.createElement('span'); s.className = 'req-star'; s.textContent = '*'; return s; };
+  ['f_tag', 'photoGrid'].concat(st.required.map(k=> FIELD_DEFS[k][0])).forEach(id=>{
+    const lbl = ($(id).closest('.two-col > div') || $(id).closest('.field')).querySelector('label');
+    if(lbl) lbl.appendChild(star());
+  });
+  const en = st.lang === 'en';
+  $('f_name').dir = en ? 'ltr' : 'rtl';
+  $('f_name').placeholder = en ? 'e.g. Brown wooden meeting table' : 'مثال: طاولة اجتماعات خشب بني';
+  if(st.required.some(k=> FIELD_DEFS[k][2])){
+    $('moreToggle').classList.add('open'); $('moreFields').classList.add('open');
+  }
+}
+function clearInvalid(){
+  document.querySelectorAll('#formSheet .invalid').forEach(x=> x.classList.remove('invalid'));
+}
+function fieldIsEmpty(key){
+  if(key === 'condition') return !currentCondition;
+  return !String($(FIELD_DEFS[key][0]).value || '').trim();
+}
+function validateRequired(){
+  clearInvalid();
+  const st = userSettings();
+  const missing = [];
+  const mark = (wrap, label)=>{ wrap.classList.add('invalid'); missing.push({wrap, label}); };
+  if(!$('f_tag').value.trim()) mark($('f_tag').closest('.field'), 'رقم الأصل');
+  const photoCount = currentPhotos.filter(p=>p).length;
+  if(photoCount < st.minPhotos) mark($('photoGrid').closest('.field'), st.minPhotos > 1 ? `${st.minPhotos} صور` : 'صورة واحدة');
+  st.required.forEach(k=>{ if(fieldIsEmpty(k)) mark(fieldWrap(k), FIELD_DEFS[k][1]); });
+  if(!missing.length) return true;
+  if(missing.some(m=> $('moreFields').contains(m.wrap))){
+    $('moreToggle').classList.add('open'); $('moreFields').classList.add('open');
+  }
+  missing[0].wrap.scrollIntoView({behavior:'smooth', block:'center'});
+  toast('أكمل الحقول الإجبارية: ' + missing.map(m=> m.label).join('، '));
+  return false;
+}
+// Remove the red mark as soon as the field is filled.
+$('formSheet').addEventListener('input', (e)=>{
+  const w = e.target.closest('.invalid'); if(w) w.classList.remove('invalid');
+});
+$('formSheet').addEventListener('change', (e)=>{
+  const w = e.target.closest('.invalid'); if(w) w.classList.remove('invalid');
+});
+$('conditionChips').addEventListener('click', ()=>{
+  const w = $('conditionChips').closest('.invalid'); if(w) w.classList.remove('invalid');
+});
+
+// Description box: grows with the text, 265-character cap, language check.
+const AR_RE = /[\u0600-\u06FF]/;
+const LATIN_RE = /[A-Za-z]/;
+function updateDescMeta(){
+  const el = $('f_name');
+  el.style.height = 'auto';
+  el.style.height = Math.max(52, el.scrollHeight + 2) + 'px';
+  $('descCount').textContent = `${el.value.length}/${DESC_MAX}`;
+  const v = el.value.trim();
+  const lang = userSettings().lang;
+  let warn = '';
+  if(v && lang === 'ar' && !AR_RE.test(v) && LATIN_RE.test(v)) warn = 'لغة الإدخال المعتمدة لك هي العربية';
+  if(v && lang === 'en' && AR_RE.test(v)) warn = 'Entry language for your account is English';
+  $('langWarn').textContent = warn;
+}
+$('f_name').addEventListener('input', updateDescMeta);
 
 // ---------- More details helper ----------
 function a_hasMore(id){
@@ -891,7 +1056,7 @@ const normTag = (t)=> String(t || '').trim().toLowerCase();
 function findDuplicate(tag){
   const t = normTag(tag);
   if(!t) return null;
-  return assets.find(a => normTag(a.tag) === t && a.id !== currentEditId) || null;
+  return assets.find(a => normTag(a.tag) === t && a.id !== currentEditId && !isFlagged(a)) || null;
 }
 function checkDuplicate(){
   const dup = findDuplicate($('f_tag').value);
@@ -910,7 +1075,7 @@ $('nextTagBtn').addEventListener('click', ()=> setTimeout(checkDuplicate, 50));
 
 // ---------- Copy from previous asset ----------
 $('copyPrevBtn').addEventListener('click', ()=>{
-  const prev = assets[0];
+  const prev = assets.find(a=> !isFlagged(a));
   if(!prev){ toast('لا يوجد أصل سابق'); return; }
   $('f_category').value = prev.category || '';
   $('f_catcode').value = prev.catCode || '';
@@ -921,22 +1086,84 @@ $('copyPrevBtn').addEventListener('click', ()=>{
   $('f_model').value = prev.model || '';
   $('f_value').value = prev.value || '';
   setCondition(prev.condition || '');
+  updateDescMeta();
   toast(`تم نسخ بيانات ${prev.tag} — امسح الرقم وصوّر فقط`);
 });
 
-// ---------- Barcode scanner ----------
+// ---------- Barcode / QR scanner ----------
+// Live camera scan with a wide target box, high resolution, continuous focus, torch and zoom.
+// 1D barcodes must be read twice in a row before they are accepted (guards against misreads).
+// If live scanning struggles, "صوّر الباركود" takes a full-resolution photo and decodes that,
+// and if that also fails the AI reads the printed number (user confirms it).
 let scanner = null;
 let scanCallback = null;
+let lastRead = {value:'', at:0};
+let torchOn = false;
+const SCAN_HINT = 'ضع الباركود داخل الإطار على بُعد 15-25 سم وأبقِ الهاتف ثابتًا. إن لم يُقرأ خلال ثوانٍ، اضغط «صوّر الباركود».';
+
 function loadScript(src){
   return new Promise((resolve, reject)=>{
-    if(document.querySelector(`script[src="${src}"]`) && window.Html5Qrcode) return resolve();
+    if(window.Html5Qrcode) return resolve();
     const el = document.createElement('script');
     el.src = src; el.onload = resolve; el.onerror = reject;
     document.head.appendChild(el);
   });
 }
+function scanFormats(){
+  const F = Html5QrcodeSupportedFormats;
+  return [F.CODE_128, F.CODE_39, F.CODE_93, F.EAN_13, F.EAN_8, F.UPC_A, F.UPC_E, F.ITF, F.CODABAR, F.QR_CODE, F.DATA_MATRIX];
+}
+// Wide, short box for long 1D barcodes; still tall enough for a QR code.
+function scanBox(w, h){
+  const width = Math.floor(Math.min(w * 0.9, 560));
+  const height = Math.floor(Math.max(150, Math.min(h * 0.55, width * 0.62)));
+  return {width, height};
+}
+function videoTrack(){
+  const v = document.querySelector('#scanReader video');
+  const st = v && v.srcObject;
+  return st && st.getVideoTracks ? st.getVideoTracks()[0] : null;
+}
+async function setupCameraControls(){
+  $('torchBtn').style.display = 'none';
+  $('zoomRow').style.display = 'none';
+  torchOn = false; $('torchBtn').classList.remove('on');
+  const track = videoTrack();
+  if(!track || !track.getCapabilities) return;
+  let caps = {};
+  try{ caps = track.getCapabilities() || {}; }catch{}
+  try{
+    if(Array.isArray(caps.focusMode) && caps.focusMode.includes('continuous')){
+      await track.applyConstraints({advanced:[{focusMode:'continuous'}]});
+    }
+  }catch{}
+  if(caps.torch) $('torchBtn').style.display = 'inline-block';
+  if(caps.zoom && caps.zoom.max > caps.zoom.min){
+    const z = $('zoomSlider');
+    z.min = caps.zoom.min; z.max = Math.min(caps.zoom.max, 8); z.step = caps.zoom.step || 0.1;
+    // A little zoom lets the phone stay far enough away to focus on small labels.
+    const start = Math.min(Number(z.max), Math.max(Number(z.min), 1.5));
+    z.value = start;
+    try{ await track.applyConstraints({advanced:[{zoom:start}]}); }catch{}
+    $('zoomRow').style.display = 'flex';
+  }
+}
+$('zoomSlider').addEventListener('input', async (e)=>{
+  const track = videoTrack(); if(!track) return;
+  try{ await track.applyConstraints({advanced:[{zoom:Number(e.target.value)}]}); }catch{}
+});
+$('torchBtn').addEventListener('click', async ()=>{
+  const track = videoTrack(); if(!track) return;
+  try{
+    await track.applyConstraints({advanced:[{torch:!torchOn}]});
+    torchOn = !torchOn;
+    $('torchBtn').classList.toggle('on', torchOn);
+  }catch{ toast('الفلاش غير مدعوم على هذا الجهاز'); }
+});
+
 async function openScanner(onResult){
   scanCallback = onResult;
+  lastRead = {value:'', at:0};
   try{
     await loadScript('/vendor/html5-qrcode.min.js');
   }catch{
@@ -944,43 +1171,144 @@ async function openScanner(onResult){
     return;
   }
   $('scanner').classList.add('open');
-  $('scanHint').textContent = 'وجّه الكاميرا إلى الباركود وأبقِ الهاتف ثابتًا';
-  const F = Html5QrcodeSupportedFormats;
+  $('scanHint').textContent = SCAN_HINT;
   scanner = new Html5Qrcode('scanReader', {
     verbose: false,
-    formatsToSupport: [F.CODE_128, F.CODE_39, F.CODE_93, F.EAN_13, F.EAN_8, F.UPC_A, F.UPC_E, F.ITF, F.CODABAR, F.QR_CODE, F.DATA_MATRIX],
+    formatsToSupport: scanFormats(),
     experimentalFeatures: { useBarCodeDetectorIfSupported: true }
   });
+  const onOk = (text, result)=> onScanned(text, result);
   try{
     await scanner.start(
       { facingMode: 'environment' },
-      { fps: 12 },  // scan the whole frame: a fixed box crops long 1D barcodes
-      (text)=> onScanned(text),
-      ()=>{}
+      { fps: 15, qrbox: scanBox,
+        videoConstraints: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 } } },
+      onOk, ()=>{}
     );
-  }catch(err){
-    console.error(err);
-    await closeScanner();
-    toast('لا يمكن فتح الكاميرا. تأكد من السماح للتطبيق باستخدامها');
+  }catch(err1){
+    console.warn('high-res start failed, retrying', err1);
+    try{
+      try{ scanner.clear(); }catch{}
+      scanner = new Html5Qrcode('scanReader', { verbose:false, formatsToSupport: scanFormats(),
+        experimentalFeatures: { useBarCodeDetectorIfSupported: true } });
+      await scanner.start({ facingMode: 'environment' }, { fps: 12, qrbox: scanBox }, onOk, ()=>{});
+    }catch(err){
+      console.error(err);
+      await stopLiveScan();
+      $('scanHint').textContent = 'تعذّر فتح الكاميرا المباشرة (تأكد من السماح باستخدامها). يمكنك تصوير الباركود بالزر أدناه.';
+      return;
+    }
   }
+  setupCameraControls();
 }
-async function closeScanner(){
-  $('scanner').classList.remove('open');
+async function stopLiveScan(){
   if(scanner){
     try{ if(scanner.isScanning) await scanner.stop(); }catch{}
     try{ scanner.clear(); }catch{}
     scanner = null;
   }
 }
-async function onScanned(text){
+async function closeScanner(){
+  $('scanner').classList.remove('open');
+  await stopLiveScan();
+}
+function isMatrixCode(result){
+  const f = result && result.result && result.result.format && result.result.format.formatName || '';
+  return /QR|DATA_MATRIX|AZTEC|PDF/i.test(f);
+}
+async function onScanned(text, result){
   const value = String(text || '').trim();
   if(!value || !scanCallback) return;
+  if(!isMatrixCode(result)){
+    const now = Date.now();
+    if(lastRead.value !== value || now - lastRead.at > 2000){ lastRead = {value, at:now}; return; }
+  }
+  deliverScan(value);
+}
+async function deliverScan(value){
+  if(!scanCallback) return;
   const cb = scanCallback;
   scanCallback = null;
   if(navigator.vibrate) navigator.vibrate(60);
   await closeScanner();
   cb(value);
 }
+
+// ---------- Decode a still photo of a barcode ----------
+function imageVariant(file, maxSide, rotate=false){
+  return new Promise((resolve)=>{
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = ()=>{
+      const scale = Math.min(1, maxSide / Math.max(img.width, img.height));
+      const w = Math.round(img.width * scale), h = Math.round(img.height * scale);
+      const c = document.createElement('canvas');
+      c.width = rotate ? h : w; c.height = rotate ? w : h;
+      const ctx = c.getContext('2d');
+      if(rotate){ ctx.translate(h, 0); ctx.rotate(Math.PI / 2); }
+      ctx.drawImage(img, 0, 0, w, h);
+      URL.revokeObjectURL(url);
+      c.toBlob((b)=> resolve(b ? new File([b], 'scan.jpg', {type:'image/jpeg'}) : null), 'image/jpeg', 0.92);
+    };
+    img.onerror = ()=>{ URL.revokeObjectURL(url); resolve(null); };
+    img.src = url;
+  });
+}
+async function decodePhoto(file){
+  // 1) Native detector (Android Chrome): fast and accurate.
+  if('BarcodeDetector' in window){
+    try{
+      const det = new BarcodeDetector();
+      const bmp = await createImageBitmap(file);
+      const codes = await det.detect(bmp);
+      const hit = codes.find(c=> c.rawValue && c.rawValue.trim());
+      if(hit) return hit.rawValue.trim();
+    }catch{}
+  }
+  // 2) Library decoder on several sizes and orientations.
+  await loadScript('/vendor/html5-qrcode.min.js');
+  const reader = new Html5Qrcode('scanFileReader', { verbose:false, formatsToSupport: scanFormats(),
+    experimentalFeatures: { useBarCodeDetectorIfSupported: false } });
+  const tries = [[1600,false],[2400,false],[1000,false],[1600,true]];
+  try{
+    for(const [side, rot] of tries){
+      const f = await imageVariant(file, side, rot);
+      if(!f) continue;
+      try{ const text = await reader.scanFile(f, false); if(text && text.trim()) return text.trim(); }catch{}
+    }
+  }finally{ try{ reader.clear(); }catch{} }
+  return '';
+}
+$('scanPhotoBtn').addEventListener('click', ()=> $('scanPhotoInput').click());
+$('scanPhotoInput').addEventListener('change', async (e)=>{
+  const file = e.target.files[0];
+  e.target.value = '';
+  if(!file || !scanCallback) return;
+  await stopLiveScan();
+  const btn = $('scanPhotoBtn');
+  btn.disabled = true;
+  $('scanHint').textContent = 'جارٍ قراءة الصورة...';
+  try{
+    const code = await decodePhoto(file);
+    if(code){ deliverScan(code); return; }
+    const aiOn = !!(session && session.license.aiEnabled);
+    if(aiOn && navigator.onLine){
+      $('scanHint').textContent = 'لم يُقرأ الباركود، جارٍ قراءة الرقم المطبوع بالذكاء الاصطناعي...';
+      const image = await resizeForAI(file, 1600, 0.85);
+      const r = await api('/api/ai-describe', {image, mediaType:'image/jpeg', mode:'scan'}, session.token);
+      if(HARD_FAIL.includes(r.code)){ await closeScanner(); await doLogout(r.message); return; }
+      if(r.ok && r.code){
+        if(confirm(`قرأ الذكاء الاصطناعي الرقم:\n${r.code}\nهل هو مطابق للملصق؟`)){ deliverScan(r.code); return; }
+      } else if(!r.ok && r.message){ toast(r.message); }
+    }
+    $('scanHint').textContent = 'لم يُقرأ الباركود. صوّره مرة أخرى عن قرب، بإضاءة جيدة، وبحيث يملأ الباركود معظم الصورة. أو أغلق الماسح واكتب الرقم يدويًا.';
+  }catch(err){
+    console.error(err);
+    $('scanHint').textContent = 'تعذّرت قراءة الصورة. حاول مرة أخرى أو اكتب الرقم يدويًا.';
+  }finally{
+    btn.disabled = false;
+  }
+});
 $('closeScanBtn').addEventListener('click', ()=>{ scanCallback = null; closeScanner(); });
 
 $('scanTagBtn').addEventListener('click', ()=> openScanner((code)=>{
@@ -990,7 +1318,8 @@ $('scanTagBtn').addEventListener('click', ()=> openScanner((code)=>{
 }));
 
 $('scanSearchBtn').addEventListener('click', ()=> openScanner(async (code)=>{
-  const found = assets.find(a => normTag(a.tag) === normTag(code));
+  const same = assets.filter(a => normTag(a.tag) === normTag(code));
+  const found = same.find(a=> !isFlagged(a)) || same[0];
   if(found){ openForm(found.id); return; }
   if(confirm(`الرقم ${code} غير مسجّل. إضافة أصل جديد بهذا الرقم؟`)){
     await openForm(null);
@@ -1228,6 +1557,7 @@ async function verifyOnline(){
       session = {token: r.token, license: r.license, lastCheck: Date.now()};
       lsSet(SESSION_KEY, session);
       renderLicenseBanner();
+      if($('formSheet').classList.contains('open')){ applyFieldSettings(); updateDescMeta(); }
       return true;
     }
     if(HARD_FAIL.includes(r.code)){ await doLogout(r.message); }
@@ -1285,6 +1615,7 @@ function fillAccount(){
   $('acc_customer').textContent = L.customer || '—';
   $('acc_expiry').textContent = L.expiresAt || 'غير محدد';
   $('acc_ai').textContent = L.aiEnabled ? 'مفعّل' : 'غير مفعّل';
+  $('acc_lang').textContent = userSettings().lang === 'en' ? 'English' : 'العربية';
   $('acc_checked').textContent = fmtDate(session.lastCheck);
   $('acc_grace').textContent = fmtDate(p.exp);
   $('acc_storage').textContent = isStandalone() || storagePersisted === true ? 'مفعّلة' : 'غير مضمونة — أضف التطبيق للشاشة الرئيسية';
@@ -1349,6 +1680,7 @@ $('aiSuggestBtn').addEventListener('click', async ()=>{
     const r = await api('/api/ai-describe', {image, mediaType:'image/jpeg'}, session.token);
     if(r.ok && r.text){
       $('f_name').value = r.text;
+      updateDescMeta();
       toast(r.remaining != null ? `تم اقتراح وصف (متبقٍ ${r.remaining} هذا الشهر)` : 'تم اقتراح وصف — تقدر تعدّله قبل الحفظ');
     } else if(HARD_FAIL.includes(r.code)){
       await doLogout(r.message);
@@ -1377,7 +1709,9 @@ $('exportBtn').addEventListener('click', async ()=>{
 
   try{
     // Build Excel sheet
-    const rows = all.map(a=>({
+    const active = all.filter(a=> !isFlagged(a));
+    const flagged = all.filter(isFlagged);
+    const rows = active.map(a=>({
       'Barcode': a.tag || '',
       'Category Code': a.catCode || '',
       'Category Name': a.category || '',
@@ -1394,10 +1728,26 @@ $('exportBtn').addEventListener('click', async ()=>{
       'Remarks': a.notes || '',
       'Value': a.value ? Number(a.value) || a.value : ''
     }));
-    const ws = XLSX.utils.json_to_sheet(rows);
+    const HEADERS = ['Barcode','Category Code','Category Name','Sub Category Code','Sub Category Name','Description','Brand','Condition','Model','SN','PlateNo','Location','Building  Id','Remarks','Value'];
+    const ws = XLSX.utils.json_to_sheet(rows, {header: HEADERS});
     ws['!cols'] = [{wch:14},{wch:12},{wch:16},{wch:14},{wch:16},{wch:30},{wch:12},{wch:10},{wch:12},{wch:14},{wch:10},{wch:12},{wch:10},{wch:22},{wch:10}];
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'جرد الأصول');
+    if(flagged.length){
+      const fRows = flagged.map(a=>({
+        'Barcode': a.tag || '',
+        'Description': a.name || '',
+        'Category Name': a.category || '',
+        'Location': a.location || '',
+        'Building  Id': a.building || '',
+        'سبب الحذف': a.deleteFlag.reason || '',
+        'تاريخ الوسم': fmtDate(a.deleteFlag.at),
+        'المستخدم': session ? (session.license.displayName || session.license.username) : ''
+      }));
+      const fws = XLSX.utils.json_to_sheet(fRows);
+      fws['!cols'] = [{wch:14},{wch:30},{wch:16},{wch:12},{wch:10},{wch:30},{wch:12},{wch:16}];
+      XLSX.utils.book_append_sheet(wb, fws, 'مطلوب حذفها');
+    }
     const xlsxData = XLSX.write(wb, {bookType:'xlsx', type:'array'});
 
     // Build ZIP: Excel + photos + data.json (data.json makes the export a restorable backup)
@@ -1447,7 +1797,7 @@ $('exportBtn').addEventListener('click', async ()=>{
     setTimeout(()=> URL.revokeObjectURL(url), 60000);
     await setSetting('lastBackupAt', Date.now());
     updateBackupState();
-    toast('تم إنشاء ملف التصدير');
+    toast(flagged.length ? `تم التصدير (${flagged.length} أصل في ورقة «مطلوب حذفها»)` : 'تم إنشاء ملف التصدير');
   } catch(err){
     console.error(err);
     toast('حدث خطأ أثناء التصدير');

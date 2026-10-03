@@ -1,7 +1,7 @@
 import crypto from 'node:crypto';
 import {
   err, json, readBody, store, getJSON, setJSON, hashPassword,
-  userKey, licKey, normUser, usageKey, monthStr
+  userKey, licKey, normUser, usageKey, monthStr, normSettings
 } from '../lib/common.mjs';
 
 function isAdmin(req) {
@@ -30,7 +30,8 @@ async function listPrefix(prefix) {
 
 const publicUser = (u) => ({
   username: u.username, displayName: u.displayName || '', licenseId: u.licenseId,
-  active: u.active, devices: (u.devices || []).length, lastLogin: u.lastLogin || null, createdAt: u.createdAt
+  active: u.active, devices: (u.devices || []).length, lastLogin: u.lastLogin || null, createdAt: u.createdAt,
+  settings: normSettings(u.settings)
 });
 
 const actions = {
@@ -93,6 +94,7 @@ const actions = {
     rec.displayName = String(user.displayName || '').trim();
     rec.licenseId = license.id;
     rec.active = user.active !== false;
+    if (user.settings) rec.settings = normSettings(user.settings);
     if (user.password) Object.assign(rec, hashPassword(user.password));
     await setJSON(userKey(username), rec);
     return json(200, { ok: true, user: publicUser(rec) });
