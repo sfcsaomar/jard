@@ -70,6 +70,16 @@ export const userKey = (u) => `users/${normUser(u)}`;
 export const licKey = (id) => `licenses/${id}`;
 export const monthStr = (d = new Date()) => d.toISOString().slice(0, 7);
 export const usageKey = (licId, m = monthStr()) => `usage/${licId}/${m}`;
+export const projectKey = (companyId, pid) => `projects/${companyId}/${pid}`;
+export const newId = () => crypto.randomUUID().replace(/-/g, '').slice(0, 10);
+export const isAdminRole = (u) => u?.role === 'admin';
+
+export async function listPrefix(prefix) {
+  const { blobs } = await store().list({ prefix });
+  const out = [];
+  for (const b of blobs) { const v = await getJSON(b.key); if (v) out.push(v); }
+  return out;
+}
 
 export async function getJSON(key) { return (await store().get(key, { type: 'json' })) || null; }
 export async function setJSON(key, val) { await store().setJSON(key, val); }
@@ -79,6 +89,7 @@ export async function setJSON(key, val) { await store().setJSON(key, val); }
 export async function loadActive(username, deviceId, { registerDevice = false } = {}) {
   const user = await getJSON(userKey(username));
   if (!user) return { error: err(401, 'bad_credentials', 'اسم المستخدم أو كلمة المرور غير صحيحة') };
+  if (isAdminRole(user)) return { error: err(403, 'admin_account', 'هذا حساب إدارة الشركة. ادخل من لوحة الشركة: /company') };
   if (!user.active) return { error: err(403, 'user_disabled', 'هذا الحساب موقوف. تواصل مع المزوّد') };
   const license = await getJSON(licKey(user.licenseId));
   if (!license) return { error: err(403, 'no_license', 'لا توجد رخصة مرتبطة بهذا الحساب') };
@@ -91,13 +102,60 @@ export async function loadActive(username, deviceId, { registerDevice = false } 
     const max = Number(license.maxDevicesPerUser || 1);
     if (!registerDevice) return { error: err(403, 'device_unknown', 'هذا الجهاز غير مسجّل لهذا الحساب') };
     if (devices.length >= max) {
-      return { error: err(403, 'device_limit', `تجاوزت عدد الأجهزة المسموح (${max}). اطلب من المزوّد إعادة ضبط الأجهزة`) };
+      return { error: err(403, 'device_limit', `تجاوزت عدد الأجهزة المسموح (${max}). اطلب من مدير حساب شركتك تحرير جهاز سابق`) };
     }
     devices.push(deviceId);
     user.devices = devices;
+    user.deviceInfo = { ...(user.deviceInfo || {}), [deviceId]: { addedAt: new Date().toISOString() } };
     await setJSON(userKey(username), user);
   }
-  return { user, license };
+  const project = user.projectId ? await getJSON(projectKey(license.id, user.projectId)) : null;
+  if (project && project.active === false) {
+    return { error: err(403, 'project_disabled', 'المشروع المرتبط بحسابك موقوف. تواصل مع مدير حساب شركتك') };
+  }
+  return { user, license, project, settings: normSettings(project ? project.settings : user.settings) };
+}
+
+// ---------- license term (months) ----------
+const today = () => new Date().toISOString().slice(0, 10);
+export function addMonthsMinusDay(start, months) {
+  const [y, m, d] = String(start).split('-').map(Number);
+  const dt = new Date(Date.UTC(y, m - 1 + Number(months), d));
+  if (dt.getUTCDate() !== d) dt.setUTCDate(0); // e.g. Jan 31 + 1 month -> end of Feb
+  dt.setUTCDate(dt.getUTCDate() - 1);
+  return dt.toISOString().slice(0, 10);
+}
+// Legacy licenses had only expiresAt; derive a start date and a month count for them.
+export function normTerm(c) {
+  const startsAt = /^\d{4}-\d{2}-\d{2}$/.test(c.startsAt || '') ? c.startsAt : String(c.createdAt || today()).slice(0, 10);
+  let months = Math.floor(Number(c.months) || 0);
+  if (!months && c.expiresAt) {
+    const a = new Date(startsAt), b = new Date(c.expiresAt);
+    months = Math.max(1, Math.round((b - a) / (30.44 * 86400000)));
+  }
+  return { startsAt, months: months || 12 };
+}
+
+// ---------- categories ----------
+const MAX_CATS = 1000, MAX_SUBS = 10000;
+const cstr = (v, n = 120) => String(v ?? '').replace(/\s+/g, ' ').trim().slice(0, n);
+export function normCategories(list) {
+  const out = [];
+  let subs = 0;
+  for (const c of Array.isArray(list) ? list : []) {
+    const name = cstr(c?.name);
+    if (!name || out.length >= MAX_CATS) continue;
+    const seen = new Set();
+    const s = [];
+    for (const x of Array.isArray(c.subs) ? c.subs : []) {
+      const sn = cstr(x?.name);
+      if (!sn || seen.has(sn) || subs >= MAX_SUBS) continue;
+      seen.add(sn); subs++;
+      s.push({ code: cstr(x.code, 40), name: sn });
+    }
+    out.push({ code: cstr(c.code, 40), name, subs: s });
+  }
+  return out;
 }
 
 // ---------- per-user field settings ----------
@@ -116,15 +174,39 @@ export function normSettings(s) {
   return { lang, required, minPhotos };
 }
 
-export function publicLicense(license, user) {
+export function publicLicense(license, user, project) {
   return {
     customer: license.customer,
     expiresAt: license.expiresAt || null,
     aiEnabled: license.aiEnabled !== false,
     username: user.username,
     displayName: user.displayName || user.username,
-    settings: normSettings(user.settings)
+    projectId: project?.id || null,
+    projectName: project?.name || '',
+    settings: normSettings(project ? project.settings : user.settings),
+    categories: project ? normCategories(project.categories) : []
   };
+}
+
+// ---------- one-time migration: legacy license -> company with a default project ----------
+// Older data had settings per user and no projects. The first time a company is opened,
+// create one default project (taking the first user's settings) and move every user into it.
+export async function ensureProjects(company) {
+  const projects = await listPrefix(`projects/${company.id}/`);
+  const users = (await listPrefix('users/')).filter((u) => u.licenseId === company.id && !isAdminRole(u));
+  const orphans = users.filter((u) => !u.projectId || !projects.some((p) => p.id === u.projectId));
+  if (!orphans.length) return projects;
+  let target = projects[0];
+  if (!target) {
+    target = {
+      id: newId(), companyId: company.id, name: 'المشروع الافتراضي', active: true,
+      settings: normSettings(orphans[0]?.settings), categories: [], createdAt: new Date().toISOString()
+    };
+    await setJSON(projectKey(company.id, target.id), target);
+    projects.push(target);
+  }
+  for (const u of orphans) { u.projectId = target.id; await setJSON(userKey(u.username), u); }
+  return projects;
 }
 
 export function issueToken(user, deviceId) {

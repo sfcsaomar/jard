@@ -1,4 +1,4 @@
-import { err, json, readBody, bearer, verifyToken, loadActive, getJSON, setJSON, usageKey, normSettings } from '../lib/common.mjs';
+import { err, json, readBody, bearer, verifyToken, loadActive, getJSON, setJSON, usageKey } from '../lib/common.mjs';
 
 // Asset description: at most 5 words, in the language the admin set for this user.
 const MAX_WORDS = 5;
@@ -33,8 +33,8 @@ export default async (req) => {
 
   const res = await loadActive(payload.u, payload.dev);
   if (res.error) return res.error;
-  const { license, user } = res;
-  const lang = normSettings(user.settings).lang;
+  const { license } = res;
+  const lang = res.settings.lang;
   if (license.aiEnabled === false) return err(403, 'ai_disabled', 'ميزة الذكاء الاصطناعي غير مفعّلة في رخصتك');
 
   const { image, mediaType, mode } = await readBody(req);

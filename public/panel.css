@@ -1,0 +1,87 @@
+/* Shared styles for the super-admin panel (admin.html) and the company panel (company.html). */
+:root{
+  --bg:#F5F3EF; --ink:#242220; --ink-soft:#6B6560; --line:#DCD6CC; --card:#FFFFFF;
+  --tag:#D9550C; --ok:#4B6B4E; --warn:#B0451F; --muted:#EDE9E2;
+}
+*{box-sizing:border-box;}
+body{margin:0; background:var(--bg); color:var(--ink); font-family:'IBM Plex Sans Arabic',sans-serif; font-size:14px;}
+.mono{font-family:'IBM Plex Mono',monospace;}
+.wrap{max-width:1100px; margin:0 auto; padding:20px 16px 60px;}
+header{display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:20px; flex-wrap:wrap;}
+h1{font-size:22px; margin:0;}
+h2{font-size:17px; margin:0;}
+h3{font-size:14.5px; margin:0;}
+.sub{color:var(--ink-soft); font-size:13px;}
+.card{background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px; margin-bottom:18px;}
+.card-head{display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:12px; flex-wrap:wrap;}
+.btn{border:none; border-radius:10px; font-family:inherit; font-weight:600; font-size:14px; padding:10px 14px; cursor:pointer;}
+.btn-primary{background:var(--tag); color:#fff;}
+.btn-ghost{background:var(--card); color:var(--ink); border:1px solid var(--line);}
+.btn-sm{padding:6px 10px; font-size:12.5px; border-radius:8px;}
+.btn-danger{background:none; color:var(--warn); border:1px solid #F0CDB9;}
+.btn:disabled{opacity:.5; cursor:default;}
+table{width:100%; border-collapse:collapse;}
+th,td{text-align:right; padding:10px 8px; border-bottom:1px solid var(--line); vertical-align:middle;}
+th{font-size:12.5px; color:var(--ink-soft); font-weight:500;}
+tr:last-child td{border-bottom:none;}
+.table-wrap{overflow-x:auto;}
+.pill{display:inline-block; font-size:12px; padding:3px 9px; border-radius:999px; background:var(--muted); color:var(--ink-soft); white-space:nowrap;}
+.pill.ok{background:#E3ECE3; color:var(--ok);}
+.pill.bad{background:#FBEDE5; color:var(--warn);}
+.actions{display:flex; gap:6px; flex-wrap:wrap;}
+.empty{color:var(--ink-soft); padding:16px 0; text-align:center;}
+
+.grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:12px;}
+label{display:block; font-size:12.5px; color:var(--ink-soft); margin-bottom:5px;}
+input,select,textarea{width:100%; border:1px solid var(--line); background:var(--card); border-radius:9px; padding:10px; font-size:14px; font-family:inherit; color:var(--ink);}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--tag); outline-offset:1px;}
+.check{display:flex; align-items:center; gap:8px; margin-top:24px;}
+.check input{width:auto;}
+.check label{margin:0;}
+
+.modal-bg{position:fixed; inset:0; background:rgba(36,34,32,.45); display:none; align-items:flex-start; justify-content:center; padding:40px 16px; z-index:50; overflow-y:auto;}
+.modal-bg.open{display:flex;}
+.modal{background:var(--bg); border-radius:14px; width:100%; max-width:640px; padding:20px;}
+.modal.wide{max-width:860px;}
+.modal-foot{display:flex; gap:8px; justify-content:flex-start; margin-top:18px; flex-wrap:wrap;}
+.form-err{color:var(--warn); min-height:20px; margin-top:10px; font-size:13px;}
+
+.login{max-width:380px; margin:12vh auto; padding:0 16px;}
+.login input{margin-bottom:10px;}
+.toast{position:fixed; bottom:20px; left:50%; transform:translateX(-50%); background:var(--ink); color:var(--bg); padding:10px 16px; border-radius:10px; opacity:0; transition:opacity .25s; pointer-events:none; z-index:90; max-width:90vw;}
+.toast.show{opacity:1;}
+.stat{font-family:'IBM Plex Mono',monospace;}
+.section-title{grid-column:1/-1; font-weight:600; font-size:14px; margin-top:8px; padding-top:12px; border-top:1px solid var(--line);}
+.req-grid{grid-column:1/-1; display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:6px 12px;}
+.req-grid label{display:flex; align-items:center; gap:7px; margin:0; color:var(--ink); font-size:13px; cursor:pointer;}
+.req-grid input{width:auto;}
+
+/* company blocks in the super-admin panel */
+.co{border:1px solid var(--line); border-radius:12px; background:var(--card); margin-bottom:14px;}
+.co-head{display:flex; gap:12px; align-items:flex-start; justify-content:space-between; padding:14px 16px; flex-wrap:wrap;}
+.co-meta{display:flex; gap:8px 16px; flex-wrap:wrap; color:var(--ink-soft); font-size:12.5px; margin-top:6px;}
+.co-meta b{color:var(--ink); font-weight:600;}
+.co-body{border-top:1px solid var(--line); padding:12px 16px 16px; display:none;}
+.co.open .co-body{display:block;}
+.co-body h3{margin:14px 0 6px;}
+.co-body h3:first-child{margin-top:0;}
+
+/* stat tiles in the company panel */
+.tiles{display:grid; grid-template-columns:repeat(auto-fill,minmax(170px,1fr)); gap:10px;}
+.tile{background:var(--bg); border:1px solid var(--line); border-radius:10px; padding:12px;}
+.tile .k{font-size:12px; color:var(--ink-soft);}
+.tile .v{font-family:'IBM Plex Mono',monospace; font-size:20px; font-weight:600; margin-top:4px;}
+.tile .v small{font-size:12.5px; color:var(--ink-soft); font-weight:500;}
+.bar{height:6px; border-radius:6px; background:var(--muted); margin-top:8px; overflow:hidden;}
+.bar i{display:block; height:100%; background:var(--tag);}
+
+.tabs{display:flex; gap:6px; margin-bottom:16px; flex-wrap:wrap;}
+.tab{background:none; border:1px solid var(--line); border-radius:999px; padding:7px 14px; font-family:inherit; font-size:13.5px; cursor:pointer; color:var(--ink);}
+.tab.on{background:var(--ink); color:var(--bg); border-color:var(--ink);}
+.dev-list{display:flex; flex-direction:column; gap:6px;}
+.dev{display:flex; align-items:center; justify-content:space-between; gap:10px; background:var(--bg); border:1px solid var(--line); border-radius:9px; padding:8px 10px; font-size:13px;}
+.cat-preview{max-height:300px; overflow:auto; border:1px solid var(--line); border-radius:10px; background:var(--card);}
+.cat-preview td,.cat-preview th{padding:6px 8px; font-size:12.5px;}
+.drop{border:2px dashed var(--line); border-radius:12px; padding:18px; text-align:center; color:var(--ink-soft); cursor:pointer; background:var(--card);}
+.drop:hover{border-color:var(--tag);}
+.hint{font-size:12.5px; color:var(--ink-soft); line-height:1.7;}

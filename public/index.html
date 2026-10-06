@@ -393,6 +393,11 @@
       </select>
     </div>
 
+    <div class="field" id="subcatPick" hidden>
+      <label>الفئة الفرعية</label>
+      <select id="f_subcatSel"><option value="">اختر الفئة الرئيسية أولًا</option></select>
+    </div>
+
     <div class="field">
       <label>الوصف / الاسم</label>
       <textarea id="f_name" class="desc-box" rows="2" maxlength="265" placeholder="مثال: طاولة اجتماعات خشب بني"></textarea>
@@ -521,6 +526,7 @@
   <div class="sheet-body">
     <div class="info-row"><span>المستخدم</span><span id="acc_user">—</span></div>
     <div class="info-row"><span>العميل</span><span id="acc_customer">—</span></div>
+    <div class="info-row"><span>المشروع</span><span id="acc_project">—</span></div>
     <div class="info-row"><span>تنتهي الرخصة</span><span id="acc_expiry" class="mono">—</span></div>
     <div class="info-row"><span>الذكاء الاصطناعي</span><span id="acc_ai">—</span></div>
     <div class="info-row"><span>لغة الإدخال</span><span id="acc_lang">—</span></div>
@@ -799,6 +805,7 @@ async function nextTagNumber(){
 $('nextTagBtn').addEventListener('click', nextTagNumber);
 
 async function openForm(id=null){
+  buildCategoryOptions();
   currentEditId = id;
   currentPhotos = [null,null,null,null];
   currentCondition = '';
@@ -809,13 +816,13 @@ async function openForm(id=null){
     const a = assets.find(x=>x.id===id);
     $('formTitle').textContent = 'تعديل الأصل';
     $('f_tag').value = a.tag || '';
-    $('f_category').value = a.category || '';
     $('f_name').value = a.name || '';
     $('f_building').value = a.building || '';
     $('f_location').value = a.location || '';
     $('f_catcode').value = a.catCode || '';
     $('f_subcat').value = a.subCategory || '';
     $('f_subcatcode').value = a.subCategoryCode || '';
+    setCategoryValue(a.category, a.subCategory);
     $('f_brand').value = a.brand || '';
     $('f_model').value = a.model || '';
     $('f_sn').value = a.sn || '';
@@ -835,13 +842,13 @@ async function openForm(id=null){
   } else {
     $('formTitle').textContent = 'أصل جديد';
     $('f_tag').value = '';
-    $('f_category').value = '';
     $('f_name').value = '';
     $('f_building').value = await getSetting('currentBuilding');
     $('f_location').value = await getSetting('currentLocation');
     $('f_catcode').value = '';
     $('f_subcat').value = '';
     $('f_subcatcode').value = '';
+    setCategoryValue('', '');
     $('f_brand').value = '';
     $('f_model').value = '';
     $('f_sn').value = '';
@@ -942,7 +949,73 @@ $('deleteLink').addEventListener('click', async ()=>{
 
 $('searchBox').addEventListener('input', (e)=> refreshList(e.target.value));
 
-// ---------- Per-user entry settings (set by the admin) ----------
+// ---------- Project categories (imported by the company admin) ----------
+// With a category list, the user picks the main category then the sub-category, and both codes fill in.
+// Without one, the built-in list is shown and codes are typed by hand, as before.
+const DEFAULT_CATS = ['Furniture', 'COMPUTER & NET WORK', 'Electrical Appliances', 'Lighting', 'Fixtures & Fittings', 'Other'];
+function projectCats(){
+  const c = session && session.license && session.license.categories;
+  return Array.isArray(c) ? c : [];
+}
+let catsSig = null;
+function optionHtml(value, code){
+  return `<option value="${escapeHtml(value)}">${escapeHtml(code ? code + ' · ' + value : value)}</option>`;
+}
+function buildCategoryOptions(){
+  const cats = projectCats();
+  const has = cats.length > 0;
+  const sig = JSON.stringify(cats.map(c=> [c.code, c.name, c.subs.length]));
+  if(sig !== catsSig){
+    const keepCat = $('f_category').value, keepSub = $('f_subcat').value;
+    catsSig = sig;
+    $('f_category').innerHTML = '<option value="">اختر الفئة</option>' +
+      (has ? cats.map(c=> optionHtml(c.name, c.code)) : DEFAULT_CATS.map(n=> optionHtml(n, ''))).join('');
+    setCategoryValue(keepCat, keepSub);
+  }
+  $('subcatPick').hidden = !has;
+  ['f_catcode', 'f_subcat', 'f_subcatcode'].forEach(id=>{
+    $(id).readOnly = has;
+    $(id).style.background = has ? 'var(--muted, #EDE9E2)' : '';
+  });
+  // A required sub-category is checked on the visible picker when a list exists.
+  FIELD_DEFS.subcat = has ? ['f_subcatSel', 'الفئة الفرعية', false] : ['f_subcat', 'الفئة الفرعية', true];
+}
+// Keeps values that are not in the list (assets saved before the list was imported) selectable.
+function ensureOption(sel, value){
+  value = value || '';
+  if(value && ![...sel.options].some(o=> o.value === value)){
+    const o = document.createElement('option'); o.value = value; o.textContent = value; sel.appendChild(o);
+  }
+  sel.value = value;
+}
+function fillSubOptions(){
+  const cat = projectCats().find(c=> c.name === $('f_category').value);
+  const subs = cat ? cat.subs : [];
+  $('f_subcatSel').innerHTML = `<option value="">${!$('f_category').value ? 'اختر الفئة الرئيسية أولًا' : subs.length ? 'اختر الفئة الفرعية' : 'لا توجد فئات فرعية لهذه الفئة'}</option>` +
+    subs.map(s=> optionHtml(s.name, s.code)).join('');
+}
+function setCategoryValue(cat, sub){
+  ensureOption($('f_category'), cat);
+  fillSubOptions();
+  ensureOption($('f_subcatSel'), sub);
+}
+$('f_category').addEventListener('change', ()=>{
+  const cats = projectCats();
+  fillSubOptions();
+  if(!cats.length) return;
+  const c = cats.find(x=> x.name === $('f_category').value);
+  $('f_catcode').value = c ? c.code : '';
+  $('f_subcat').value = '';
+  $('f_subcatcode').value = '';
+});
+$('f_subcatSel').addEventListener('change', ()=>{
+  const c = projectCats().find(x=> x.name === $('f_category').value);
+  const s = c && c.subs.find(x=> x.name === $('f_subcatSel').value);
+  $('f_subcat').value = s ? s.name : $('f_subcatSel').value;
+  $('f_subcatcode').value = s ? s.code : $('f_subcatcode').value;
+});
+
+// ---------- Per-project entry settings (set by the company admin) ----------
 const DESC_MAX = 265;
 // key -> [element id, label, inside "more details"?]
 const FIELD_DEFS = {
@@ -975,6 +1048,7 @@ function fieldWrap(key){
   return el.closest('.two-col > div') || el.closest('.field');
 }
 function applyFieldSettings(){
+  buildCategoryOptions();
   const st = userSettings();
   document.querySelectorAll('#formSheet .req-star').forEach(x=> x.remove());
   $('photoLabel').textContent = st.minPhotos > 1
@@ -1077,10 +1151,10 @@ $('nextTagBtn').addEventListener('click', ()=> setTimeout(checkDuplicate, 50));
 $('copyPrevBtn').addEventListener('click', ()=>{
   const prev = assets.find(a=> !isFlagged(a));
   if(!prev){ toast('لا يوجد أصل سابق'); return; }
-  $('f_category').value = prev.category || '';
   $('f_catcode').value = prev.catCode || '';
   $('f_subcat').value = prev.subCategory || '';
   $('f_subcatcode').value = prev.subCategoryCode || '';
+  setCategoryValue(prev.category, prev.subCategory);
   $('f_name').value = prev.name || '';
   $('f_brand').value = prev.brand || '';
   $('f_model').value = prev.model || '';
@@ -1613,6 +1687,7 @@ function fillAccount(){
   const L = session.license, p = tokenPayload(session.token);
   $('acc_user').textContent = L.displayName ? `${L.displayName} (${L.username})` : L.username;
   $('acc_customer').textContent = L.customer || '—';
+  $('acc_project').textContent = L.projectName || '—';
   $('acc_expiry').textContent = L.expiresAt || 'غير محدد';
   $('acc_ai').textContent = L.aiEnabled ? 'مفعّل' : 'غير مفعّل';
   $('acc_lang').textContent = userSettings().lang === 'en' ? 'English' : 'العربية';

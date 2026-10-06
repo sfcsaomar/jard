@@ -1,5 +1,5 @@
 // Offline support: the app shell and libraries are cached so the app opens without internet.
-const CACHE = 'asset-inv-v4';
+const CACHE = 'asset-inv-v5';
 const SHELL = [
   '/',
   '/index.html',
@@ -25,7 +25,7 @@ self.addEventListener('activate', (e) => {
 self.addEventListener('fetch', (e) => {
   const req = e.request;
   const url = new URL(req.url);
-  if (req.method !== 'GET' || url.pathname.startsWith('/api/') || url.pathname.startsWith('/admin')) return;
+  if (req.method !== 'GET' || url.pathname.startsWith('/api/') || url.pathname.startsWith('/admin') || url.pathname.startsWith('/company') || url.pathname === '/panel.css') return;
 
   // Pages: network first so updates arrive, cache as fallback when offline.
   if (req.mode === 'navigate') {

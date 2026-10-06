@@ -1,8 +1,11 @@
 import crypto from 'node:crypto';
 import {
-  err, json, readBody, store, getJSON, setJSON, hashPassword,
-  userKey, licKey, normUser, usageKey, monthStr, normSettings
+  err, json, readBody, store, getJSON, setJSON, licKey, listPrefix, addMonthsMinusDay, normTerm, monthStr
 } from '../lib/common.mjs';
+import {
+  companySnapshot, saveAccount, removeDevice, deleteAccount, saveProject, setCategories, getProject,
+  deleteProject, loadCompany, publicUser, companyUsers
+} from '../lib/accounts.mjs';
 
 function isAdmin(req) {
   const expected = (process.env.ADMIN_PASSWORD || '').trim();
@@ -21,96 +24,111 @@ function clientKey(req, context) {
   return 'adminlocks-v2/' + crypto.createHash('sha256').update(String(ip).split(',')[0].trim()).digest('hex').slice(0, 32);
 }
 
-async function listPrefix(prefix) {
-  const { blobs } = await store().list({ prefix });
-  const out = [];
-  for (const b of blobs) { const v = await getJSON(b.key); if (v) out.push(v); }
-  return out;
+const today = () => new Date().toISOString().slice(0, 10);
+const num = (v, min, def) => Math.max(min, Math.floor(Number(v ?? def) || def));
+const ok = (body = {}) => json(200, { ok: true, ...body });
+
+async function withCompany(id, fn) {
+  const c = await loadCompany(id);
+  if (!c) return err(404, 'not_found', 'الشركة غير موجودة');
+  return fn(c);
 }
 
-const publicUser = (u) => ({
-  username: u.username, displayName: u.displayName || '', licenseId: u.licenseId,
-  active: u.active, devices: (u.devices || []).length, lastLogin: u.lastLogin || null, createdAt: u.createdAt,
-  settings: normSettings(u.settings)
-});
-
 const actions = {
+  // Companies with their admins, projects and users.
   async overview() {
-    const licenses = await listPrefix('licenses/');
-    const users = await listPrefix('users/');
-    const m = monthStr();
-    for (const l of licenses) {
-      l.usage = (await getJSON(usageKey(l.id, m))) || { count: 0 };
-      l.userCount = users.filter((u) => u.licenseId === l.id).length;
-    }
-    licenses.sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
-    return json(200, { ok: true, month: m, licenses, users: users.map(publicUser) });
+    const companies = await listPrefix('licenses/');
+    companies.sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
+    const list = [];
+    for (const c of companies) list.push(await companySnapshot(c, { withNotes: true }));
+    return ok({ month: monthStr(), companies: list });
   },
 
-  async saveLicense({ license }) {
-    if (!license?.customer) return err(400, 'missing', 'اسم العميل مطلوب');
-    const id = license.id || crypto.randomUUID().slice(0, 8);
+  // Create or edit a company and its license. The license runs for a number of months from its start date.
+  async saveCompany({ company }) {
+    const name = String(company?.customer || '').trim();
+    if (!name) return err(400, 'missing', 'اسم الشركة مطلوب');
+    const id = company.id || crypto.randomUUID().slice(0, 8);
     const old = (await getJSON(licKey(id))) || { createdAt: new Date().toISOString() };
+    const startsAt = /^\d{4}-\d{2}-\d{2}$/.test(company.startsAt || '') ? company.startsAt : today();
+    const months = Math.min(120, num(company.months, 1, 12));
     const rec = {
-      ...old,
-      id,
-      customer: String(license.customer).trim(),
-      expiresAt: license.expiresAt || null,
-      maxUsers: Math.max(1, Number(license.maxUsers || 1)),
-      maxDevicesPerUser: Math.max(1, Number(license.maxDevicesPerUser || 1)),
-      aiEnabled: license.aiEnabled !== false,
-      aiMonthlyCap: Math.max(0, Number(license.aiMonthlyCap || 0)),
-      active: license.active !== false,
-      notes: String(license.notes || '')
+      ...old, id, customer: name, startsAt, months,
+      expiresAt: addMonthsMinusDay(startsAt, months),
+      maxUsers: num(company.maxUsers, 1, 1),
+      maxDevicesPerUser: num(company.maxDevicesPerUser, 1, 1),
+      aiEnabled: company.aiEnabled !== false,
+      aiMonthlyCap: num(company.aiMonthlyCap, 0, 0),
+      active: company.active !== false,
+      contactName: String(company.contactName || '').trim().slice(0, 80),
+      contactPhone: String(company.contactPhone || '').trim().slice(0, 40),
+      contactEmail: String(company.contactEmail || '').trim().slice(0, 120),
+      notes: String(company.notes || '').slice(0, 1000)
     };
     await setJSON(licKey(id), rec);
-    return json(200, { ok: true, license: rec });
+    return ok({ company: await companySnapshot(rec, { withNotes: true }) });
   },
 
-  async deleteLicense({ id }) {
-    const users = (await listPrefix('users/')).filter((u) => u.licenseId === id);
-    if (users.length) return err(400, 'has_users', 'احذف مستخدمي هذه الرخصة أولًا');
-    await store().delete(licKey(id));
-    return json(200, { ok: true });
+  // Renew by N months: continues from the current end date, or restarts today if already expired.
+  async renewCompany({ id, months }) {
+    return withCompany(id, async (c) => {
+      const add = Math.min(120, num(months, 1, 12));
+      const term = normTerm(c);
+      const expired = c.expiresAt && c.expiresAt < today();
+      if (expired) { c.startsAt = today(); c.months = add; }
+      else { c.startsAt = term.startsAt; c.months = term.months + add; }
+      c.expiresAt = addMonthsMinusDay(c.startsAt, c.months);
+      c.active = true;
+      c.renewals = [...(c.renewals || []), { at: new Date().toISOString(), months: add, until: c.expiresAt }].slice(-50);
+      await setJSON(licKey(c.id), c);
+      return ok({ expiresAt: c.expiresAt });
+    });
   },
 
+  async deleteCompany({ id }) {
+    return withCompany(id, async (c) => {
+      if ((await companyUsers(c.id)).length) return err(400, 'has_users', 'احذف حسابات هذه الشركة (الأدمن والمستخدمين) أولًا');
+      for (const p of await listPrefix(`projects/${c.id}/`)) await store().delete(`projects/${c.id}/${p.id}`);
+      await store().delete(licKey(c.id));
+      return ok();
+    });
+  },
+
+  // Company admin accounts (the customer's own administrator).
+  async saveCompanyAdmin({ admin }) {
+    return withCompany(admin?.companyId, async (c) => {
+      const r = await saveAccount(c, admin, 'admin');
+      return r.error || ok({ user: publicUser(r.user) });
+    });
+  },
+
+  // The super admin can also manage everything inside a company.
   async saveUser({ user }) {
-    const username = normUser(user?.username);
-    if (!/^[a-z0-9._-]{3,40}$/.test(username)) {
-      return err(400, 'bad_username', 'اسم المستخدم: 3-40 حرفًا إنجليزيًا أو أرقامًا أو . _ -');
-    }
-    const license = await getJSON(licKey(user.licenseId));
-    if (!license) return err(400, 'no_license', 'اختر رخصة صحيحة');
-    const existing = await getJSON(userKey(username));
-
-    if (!existing || existing.licenseId !== user.licenseId) {
-      const count = (await listPrefix('users/')).filter((u) => u.licenseId === license.id).length;
-      if (count >= license.maxUsers) return err(400, 'user_limit', `وصلت الرخصة للحد الأعلى من المستخدمين (${license.maxUsers})`);
-    }
-    if (!existing && !user.password) return err(400, 'no_password', 'كلمة المرور مطلوبة للمستخدم الجديد');
-    if (user.password && String(user.password).length < 8) return err(400, 'weak_password', 'كلمة المرور 8 أحرف على الأقل');
-
-    const rec = existing || { username, devices: [], createdAt: new Date().toISOString() };
-    rec.displayName = String(user.displayName || '').trim();
-    rec.licenseId = license.id;
-    rec.active = user.active !== false;
-    if (user.settings) rec.settings = normSettings(user.settings);
-    if (user.password) Object.assign(rec, hashPassword(user.password));
-    await setJSON(userKey(username), rec);
-    return json(200, { ok: true, user: publicUser(rec) });
+    return withCompany(user?.companyId, async (c) => {
+      const r = await saveAccount(c, user, 'user');
+      return r.error || ok({ user: publicUser(r.user) });
+    });
   },
-
-  async resetDevices({ username }) {
-    const u = await getJSON(userKey(username));
-    if (!u) return err(404, 'not_found', 'المستخدم غير موجود');
-    u.devices = [];
-    await setJSON(userKey(username), u);
-    return json(200, { ok: true });
+  async resetDevices({ companyId, username, deviceId }) {
+    return withCompany(companyId, async (c) => (await removeDevice(c, username, deviceId)) || ok());
   },
-
-  async deleteUser({ username }) {
-    await store().delete(userKey(username));
-    return json(200, { ok: true });
+  async deleteUser({ companyId, username }) {
+    return withCompany(companyId, async (c) => (await deleteAccount(c, username)) || ok());
+  },
+  async saveProject({ companyId, project }) {
+    return withCompany(companyId, async (c) => { const r = await saveProject(c, project); return r.error || ok(); });
+  },
+  async getProject({ companyId, projectId }) {
+    return withCompany(companyId, async (c) => {
+      const p = await getProject(c, projectId);
+      return p ? ok({ project: p }) : err(404, 'not_found', 'المشروع غير موجود');
+    });
+  },
+  async setCategories({ companyId, projectId, categories }) {
+    return withCompany(companyId, async (c) => { const r = await setCategories(c, projectId, categories); return r.error || ok(); });
+  },
+  async deleteProject({ companyId, projectId }) {
+    return withCompany(companyId, async (c) => (await deleteProject(c, projectId)) || ok());
   }
 };
 

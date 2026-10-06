@@ -21,10 +21,13 @@ export default async (req) => {
   const res = await loadActive(username, deviceId, { registerDevice: true });
   if (res.error) return res.error;
 
-  res.user.lastLogin = new Date().toISOString();
+  const now = new Date().toISOString();
+  res.user.lastLogin = now;
+  res.user.deviceInfo = res.user.deviceInfo || {};
+  res.user.deviceInfo[deviceId] = { ...(res.user.deviceInfo[deviceId] || { addedAt: now }), lastSeen: now };
   await setJSON(userKey(username), res.user);
 
-  return json(200, { ok: true, token: issueToken(res.user, deviceId), license: publicLicense(res.license, res.user) });
+  return json(200, { ok: true, token: issueToken(res.user, deviceId), license: publicLicense(res.license, res.user, res.project) });
 };
 
 export const config = { path: '/api/login' };
