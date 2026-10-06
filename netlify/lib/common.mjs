@@ -1,6 +1,7 @@
 // Shared helpers for all functions: storage, password hashing, signed tokens, license checks.
 import crypto from 'node:crypto';
 import { getStore } from '@netlify/blobs';
+import { syncEnabled } from './supa.mjs';
 
 export const TOKEN_DAYS = Number(process.env.OFFLINE_GRACE_DAYS || 7);
 const MAX_FAILED = 5;
@@ -184,7 +185,8 @@ export function publicLicense(license, user, project) {
     projectId: project?.id || null,
     projectName: project?.name || '',
     settings: normSettings(project ? project.settings : user.settings),
-    categories: project ? normCategories(project.categories) : []
+    categories: project ? normCategories(project.categories) : [],
+    sync: syncEnabled() && !!project
   };
 }
 

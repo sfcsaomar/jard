@@ -289,6 +289,11 @@
     background:#FBEDE5; color:var(--warn); border:1px solid #F0CDB9; display:none;
   }
   .lic-banner.show{display:block;}
+  .sync-pill{border:1px solid var(--line); background:var(--card); color:var(--ink-soft); border-radius:999px; padding:5px 10px; font-family:inherit; font-size:12px; cursor:pointer; white-space:nowrap;}
+  .sync-pill.ok{color:var(--ok); border-color:#C9D9CA;}
+  .sync-pill.busy{color:var(--tag); border-color:#F0CDB9;}
+  .sync-pill.err{color:var(--warn); border-color:#F0CDB9; background:#FBEDE5;}
+  .sync-dot{display:inline-block; font-size:11px; color:var(--tag); margin-inline-start:6px;}
   .info-row{display:flex; justify-content:space-between; gap:10px; padding:11px 0; border-bottom:1px solid var(--line); font-size:14px;}
   .info-row span:first-child{color:var(--ink-soft);}
   .info-row span:last-child{font-weight:600; text-align:left;}
@@ -319,6 +324,7 @@
     <div class="brand">جرد الأصول</div>
     <div style="display:flex; align-items:center; gap:10px;">
       <div class="count-pill"><b id="assetCount">0</b> أصل مسجّل<span id="flaggedCount"></span></div>
+      <button class="sync-pill" id="syncPill" hidden title="المزامنة مع الخادم"></button>
       <button class="icon-btn" id="settingsBtn" style="font-size:19px;" title="الحساب والرخصة">⚙</button>
     </div>
   </div>
@@ -531,6 +537,7 @@
     <div class="info-row"><span>الذكاء الاصطناعي</span><span id="acc_ai">—</span></div>
     <div class="info-row"><span>لغة الإدخال</span><span id="acc_lang">—</span></div>
     <div class="info-row"><span>آخر تحقق من الخادم</span><span id="acc_checked" class="mono">—</span></div>
+    <div class="info-row"><span>المزامنة مع الخادم</span><span id="acc_sync">—</span></div>
     <div class="info-row"><span>حماية البيانات على الجهاز</span><span id="acc_storage">—</span></div>
     <div class="photo-hint" style="margin-top:14px;">
       يعمل التطبيق دون إنترنت حتى تاريخ <b id="acc_grace" class="mono">—</b>. اتصل بالإنترنت قبل هذا التاريخ ليتجدد التحقق تلقائيًا.
@@ -633,7 +640,24 @@ function dbAll(){
   });
 }
 
-function dbPut(asset){
+// Every save by the user marks the asset for upload; the sync engine saves with fromSync.
+function newUid(){
+  return crypto.randomUUID ? crypto.randomUUID() : 'a' + Date.now().toString(16) + Math.random().toString(16).slice(2, 14);
+}
+function dbGet(id){
+  return new Promise((resolve)=>{
+    const req = db.transaction(STORE, 'readonly').objectStore(STORE).get(id);
+    req.onsuccess = ()=> resolve(req.result || null);
+    req.onerror = ()=> resolve(null);
+  });
+}
+function dbPut(asset, {fromSync = false} = {}){
+  if(!fromSync){
+    asset.uid = asset.uid || newUid();
+    asset.updatedAt = Date.now();
+    asset.dirty = true;
+    if(typeof scheduleSync === 'function') scheduleSync();
+  }
   return new Promise((resolve)=>{
     const tx = db.transaction(STORE, 'readwrite');
     const store = tx.objectStore(STORE);
@@ -682,6 +706,7 @@ async function refreshList(filter=''){
   );
 
   $('emptyState').style.display = (assets.length === 0) ? 'block' : 'none';
+  if(syncOn() && !syncState.running) updateSyncUi(assets.filter(a=> a.dirty || !a.uid).length);
   updateBackupState();
 
   filtered.forEach(a=>{
@@ -692,7 +717,7 @@ async function refreshList(filter=''){
     card.innerHTML = `
       ${firstPhoto ? `<img class="asset-thumb" src="${thumbSrc}">` : `<div class="asset-thumb"></div>`}
       <div class="asset-info">
-        <div class="asset-tag mono">${escapeHtml(a.tag || '—')}${isFlagged(a) ? '<span class="flag-badge">مطلوب حذفه</span>' : ''}</div>
+        <div class="asset-tag mono">${escapeHtml(a.tag || '—')}${isFlagged(a) ? '<span class="flag-badge">مطلوب حذفه</span>' : ''}${syncOn() && (a.dirty || !a.uid) ? '<span class="sync-dot" title="بانتظار الرفع">⏳</span>' : ''}</div>
         <div class="asset-name">${escapeHtml(a.name || 'بدون اسم')}</div>
         <div class="asset-meta">${escapeHtml(a.category||'')}${a.category && a.condition ? ' · ' : ''}${escapeHtml(conditionLabel(a.condition))}${(a.building||a.location) ? ' · ' + escapeHtml([a.building,a.location].filter(Boolean).join(' - ')) : ''}</div>
       </div>
@@ -911,7 +936,11 @@ $('saveBtn').addEventListener('click', async ()=>{
     deleteFlag: currentEditId ? (assets.find(a=>a.id===currentEditId)?.deleteFlag || null) : null,
     createdAt: currentEditId ? (assets.find(a=>a.id===currentEditId)?.createdAt || Date.now()) : Date.now()
   };
-  if(currentEditId){ asset.id = currentEditId; }
+  if(currentEditId){
+    asset.id = currentEditId;
+    const prev = assets.find(a=> a.id === currentEditId);
+    if(prev){ asset.uid = prev.uid; asset.upHashes = prev.upHashes; } // keep the server identity
+  }
   await dbPut(asset);
   await setSetting('lastChangeAt', Date.now());
   closeForm();
@@ -1510,6 +1539,16 @@ async function updateBackupState(){
   if(!db) return;
   const lastBackup = Number(await getSetting('lastBackupAt')) || 0;
   const lastChange = Number(await getSetting('lastChangeAt')) || 0;
+  // With server sync, the backup reminder only matters for assets not uploaded yet.
+  if(syncOn()){
+    const unsynced = assets.filter(a=> a.dirty || !a.uid);
+    const oldest = Math.min(...unsynced.map(a=> a.updatedAt || a.createdAt || Date.now()));
+    backupMsg = unsynced.length && Date.now() - oldest > 12 * 3600000
+      ? `${unsynced.length} أصل لم يُرفع للخادم منذ أكثر من 12 ساعة. اتصل بالإنترنت، أو صدّر نسخة احتياطية.`
+      : '';
+    renderLicenseBanner();
+    return;
+  }
   const pending = assets.length > 0 && lastChange > lastBackup;
   const stale = !lastBackup || (Date.now() - lastBackup) > 12 * 3600000;
   backupMsg = pending && stale
@@ -1611,6 +1650,8 @@ async function enterApp(){
   await loadLocationBar();
   await ensurePersistentStorage();
   renderInstallCard();
+  updateSyncUi();
+  scheduleSync(1500);
 }
 
 async function doLogout(message){
@@ -1631,6 +1672,7 @@ async function verifyOnline(){
       session = {token: r.token, license: r.license, lastCheck: Date.now()};
       lsSet(SESSION_KEY, session);
       renderLicenseBanner();
+      updateSyncUi();
       if($('formSheet').classList.contains('open')){ applyFieldSettings(); updateDescMeta(); }
       return true;
     }
@@ -1692,6 +1734,8 @@ function fillAccount(){
   $('acc_ai').textContent = L.aiEnabled ? 'مفعّل' : 'غير مفعّل';
   $('acc_lang').textContent = userSettings().lang === 'en' ? 'English' : 'العربية';
   $('acc_checked').textContent = fmtDate(session.lastCheck);
+  $('acc_sync').textContent = !syncOn() ? 'غير مفعّلة' : syncState.error ? 'تعذّرت آخر محاولة' :
+    syncState.pending ? `${syncState.pending} بانتظار الرفع` : (syncState.lastOk ? 'كل الأصول مرفوعة' : '—');
   $('acc_grace').textContent = fmtDate(p.exp);
   $('acc_storage').textContent = isStandalone() || storagePersisted === true ? 'مفعّلة' : 'غير مضمونة — أضف التطبيق للشاشة الرئيسية';
   getSetting('lastBackupAt').then(v=> $('acc_backup').textContent = v ? new Date(Number(v)).toLocaleString('en-GB') : 'لم يتم بعد');
@@ -1709,7 +1753,9 @@ $('logoutBtn').addEventListener('click', async ()=>{
     await doLogout('');
   }
 });
-window.addEventListener('online', ()=> verifyOnline());
+window.addEventListener('online', async ()=>{ await verifyOnline(); scheduleSync(1000); });
+setInterval(()=>{ if(document.visibilityState === 'visible') scheduleSync(0); }, 120000);
+document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState === 'visible') scheduleSync(1500); });
 
 // ---------- AI description (through our server) ----------
 function updateAiButtonState(){
@@ -1771,6 +1817,143 @@ $('aiSuggestBtn').addEventListener('click', async ()=>{
     updateAiButtonState();
   }
 });
+
+// ---------- Server sync ----------
+// Assets and photos upload in the background whenever the phone is online. Photos are named by
+// their SHA-256, so an interrupted upload simply repeats; records use last-edit-wins on the server.
+const syncState = {running: false, again: false, timer: null, pending: 0, lastOk: 0, error: ''};
+function syncOn(){ return !!(session && session.license && session.license.sync); }
+function scheduleSync(ms = 2500){
+  if(!syncOn()) return;
+  clearTimeout(syncState.timer);
+  syncState.timer = setTimeout(runSync, ms);
+}
+async function sha256Hex(blob){
+  const h = await crypto.subtle.digest('SHA-256', await blob.arrayBuffer());
+  return [...new Uint8Array(h)].map(b=> b.toString(16).padStart(2, '0')).join('');
+}
+function makeThumb(blob, maxSide = 320){
+  return new Promise((resolve)=>{
+    const url = URL.createObjectURL(blob);
+    const img = new Image();
+    img.onload = ()=>{
+      const scale = Math.min(1, maxSide / Math.max(img.width, img.height));
+      const c = document.createElement('canvas');
+      c.width = Math.round(img.width * scale); c.height = Math.round(img.height * scale);
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(url);
+      c.toBlob((out)=> resolve(out || blob), 'image/jpeg', 0.7);
+    };
+    img.onerror = ()=>{ URL.revokeObjectURL(url); resolve(blob); };
+    img.src = url;
+  });
+}
+const SYNC_FIELDS = ['category','catCode','subCategory','subCategoryCode','name','brand','condition','model','sn','plateNo','location','building','notes','value'];
+function assetData(a){
+  const d = {};
+  for(const f of SYNC_FIELDS) if(a[f] != null && a[f] !== '') d[f] = a[f];
+  if(a.deleteFlag) d.deleteFlag = a.deleteFlag;
+  return d;
+}
+function syncFail(r){ const e = new Error((r && r.message) || 'تعذّرت المزامنة'); e.code = r && r.code; return e; }
+
+function updateSyncUi(pending){
+  if(pending != null) syncState.pending = pending;
+  const el = $('syncPill');
+  if(!syncOn()){ el.hidden = true; return; }
+  el.hidden = false;
+  el.className = 'sync-pill';
+  if(syncState.running && syncState.pending){ el.classList.add('busy'); el.textContent = `⇡ ${syncState.pending}`; }
+  else if(syncState.error){ el.classList.add('err'); el.textContent = syncState.pending ? `⚠ ${syncState.pending}` : '⚠'; }
+  else if(syncState.pending){ el.textContent = navigator.onLine ? `⇡ ${syncState.pending}` : `⏳ ${syncState.pending}`; }
+  else { el.classList.add('ok'); el.textContent = '☁ ✓'; }
+}
+$('syncPill').addEventListener('click', ()=>{
+  if(!navigator.onLine){ toast(`لا يوجد اتصال. ${syncState.pending || 'لا'} أصل بانتظار الرفع، وتُرفع تلقائيًا عند الاتصال`); return; }
+  if(syncState.error) toast('آخر محاولة: ' + syncState.error + '. جارٍ إعادة المحاولة');
+  else if(syncState.pending) toast(`جارٍ رفع ${syncState.pending} أصل`);
+  else toast('كل الأصول مرفوعة للخادم');
+  runSync();
+});
+
+async function runSync(){
+  if(!syncOn() || !db || !navigator.onLine) { updateSyncUi(); return; }
+  if(syncState.running){ syncState.again = true; return; }
+  syncState.running = true; syncState.error = '';
+  let changed = false;
+  try{
+    const all = await dbAll();
+    for(const a of all){
+      if(!a.uid){ // assets saved before sync existed
+        a.uid = newUid(); a.updatedAt = a.updatedAt || a.createdAt || Date.now(); a.dirty = true;
+        await dbPut(a, {fromSync: true});
+      }
+    }
+    const queue = all.filter(a=> a.dirty);
+    updateSyncUi(queue.length);
+    while(queue.length && syncOn() && navigator.onLine){
+      const batch = queue.splice(0, 5);
+      const prepared = [], need = [];
+      for(const a of batch){
+        const done = new Set(a.upHashes || []);
+        const photos = [];
+        for(const p of (a.photos || [])){
+          if(!p) continue;
+          const h = await sha256Hex(p);
+          photos.push(h);
+          if(!done.has(h) && !need.some(x=> x.h === h)) need.push({h, blob: p, thumb: true});
+        }
+        let label = null;
+        if(a.labelPhoto){
+          label = await sha256Hex(a.labelPhoto);
+          if(!done.has(label) && !need.some(x=> x.h === label)) need.push({h: label, blob: a.labelPhoto, thumb: false});
+        }
+        prepared.push({a, photos, label});
+      }
+      for(let i = 0; i < need.length; i += 12){
+        const chunk = need.slice(i, i + 12);
+        const r = await api('/api/sync', {action: 'sign', deviceId: deviceId(),
+          photos: chunk.map(x=> x.h), thumbs: chunk.filter(x=> x.thumb).map(x=> x.h)}, session.token);
+        if(!r.ok) throw syncFail(r);
+        for(const u of r.uploads){
+          const item = chunk.find(x=> x.h === u.hash);
+          const body = u.kind === 'thumb' ? await makeThumb(item.blob) : item.blob;
+          const res = await fetch(u.url, {method: 'PUT', headers: {'Content-Type': 'image/jpeg', 'x-upsert': 'true'}, body});
+          if(!res.ok) throw syncFail({message: 'تعذّر رفع صورة (' + res.status + ')'});
+        }
+      }
+      const r = await api('/api/sync', {action: 'push', deviceId: deviceId(), assets: prepared.map(({a, photos, label})=>({
+        uid: a.uid, tag: a.tag || '', createdAt: a.createdAt, updatedAt: a.updatedAt, photos, label, data: assetData(a)
+      }))}, session.token);
+      if(!r.ok) throw syncFail(r);
+      for(const {a, photos, label} of prepared){
+        const cur = await dbGet(a.id);
+        if(!cur) continue;
+        cur.upHashes = [...new Set([...(cur.upHashes || []), ...photos, ...(label ? [label] : [])])];
+        if(cur.updatedAt === a.updatedAt){ cur.dirty = false; cur.syncedAt = Date.now(); }
+        await dbPut(cur, {fromSync: true});
+      }
+      changed = true;
+      updateSyncUi(queue.length);
+    }
+    if(!queue.length){ syncState.lastOk = Date.now(); await setSetting('lastSyncAt', syncState.lastOk); }
+  }catch(e){
+    syncState.error = e.message || 'تعذّرت المزامنة';
+    if(HARD_FAIL.includes(e.code)) verifyOnline();
+    else if(e.code === 'sync_off' || e.code === 'no_project') verifyOnline();
+    clearTimeout(syncState.timer);
+    syncState.timer = setTimeout(runSync, 60000); // retry later
+  }finally{
+    syncState.running = false;
+    if(db){
+      const left = (await dbAll()).filter(a=> a.dirty || !a.uid).length;
+      updateSyncUi(left);
+      if(changed && !$('formSheet').classList.contains('open')) await refreshList($('searchBox').value);
+      else updateBackupState();
+    }
+    if(syncState.again){ syncState.again = false; scheduleSync(500); }
+  }
+}
 
 // ---------- Export ----------
 $('exportBtn').addEventListener('click', async ()=>{
@@ -1854,7 +2037,7 @@ $('exportBtn').addEventListener('click', async ()=>{
         labelFile = uniqueName(`${safeTag}-label`);
         imgFolder.file(labelFile, a.labelPhoto);
       }
-      const {id, photos, labelPhoto, ...fields} = a;
+      const {id, photos, labelPhoto, dirty, upHashes, syncedAt, ...fields} = a;
       records.push({...fields, photoFiles, labelFile});
     }
     const user = session ? tokenPayload(session.token).u : '';

@@ -36,6 +36,7 @@
 
   <div class="tabs" id="tabs">
     <button class="tab on" data-tab="license">الرخصة</button>
+    <button class="tab" data-tab="inventory">الجرد</button>
     <button class="tab" data-tab="projects">المشاريع</button>
     <button class="tab" data-tab="users">المستخدمون والأجهزة</button>
     <button class="tab" data-tab="account">حسابي</button>
@@ -50,6 +51,54 @@
     </div>
   </section>
 
+  <!-- Inventory (synced from the phones) -->
+  <section data-pane="inventory" hidden>
+    <div class="card" id="invOff" hidden>
+      <h2>الجرد</h2>
+      <p class="hint">المزامنة مع الخادم غير مفعّلة بعد. تواصل مع المزوّد لتفعيلها، وحتى ذلك الحين يصدّر كل مستخدم ملفه من هاتفه.</p>
+    </div>
+    <div id="invOn">
+      <div class="card">
+        <div class="card-head">
+          <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+            <h2>الجرد</h2>
+            <select id="invProject" style="width:auto; min-width:200px;"></select>
+          </div>
+          <div class="actions">
+            <button class="btn btn-ghost btn-sm" id="invReload">تحديث</button>
+            <button class="btn btn-primary btn-sm" id="invExcel">تصدير Excel</button>
+            <button class="btn btn-ghost btn-sm" id="invPhotosBtn">تنزيل الصور</button>
+          </div>
+        </div>
+        <div class="tiles" id="invTiles"></div>
+        <p class="hint" style="margin-bottom:0">تُرفع الأصول وصورها تلقائيًا من هواتف المستخدمين عند اتصالها بالإنترنت. ما لم يُرفع بعد يظهر هنا بعد أول اتصال للهاتف.</p>
+      </div>
+      <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); gap:18px; margin-bottom:18px;">
+        <div class="card" style="margin:0"><h3 style="margin-bottom:8px">حسب المستخدم</h3><div class="table-wrap"><table><thead><tr><th>المستخدم</th><th>الأصول</th><th>آخر رفع</th></tr></thead><tbody id="invByUser"></tbody></table></div></div>
+        <div class="card" style="margin:0"><h3 style="margin-bottom:8px">حسب المبنى</h3><div class="table-wrap"><table><thead><tr><th>المبنى</th><th>الأصول</th></tr></thead><tbody id="invByBuilding"></tbody></table></div></div>
+      </div>
+      <div class="card">
+        <div class="card-head">
+          <h2>الأصول</h2>
+          <input id="invSearch" placeholder="بحث برقم الأصل أو الوصف أو الرقم التسلسلي أو الموقع أو المستخدم" style="max-width:420px;">
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th></th><th>رقم الأصل</th><th>الوصف</th><th>الفئة</th><th>الموقع</th><th>المستخدم</th><th>رُفع</th></tr></thead>
+            <tbody id="invBody"></tbody>
+          </table>
+        </div>
+        <div class="actions" style="justify-content:space-between; align-items:center; margin-top:10px;">
+          <span class="sub" id="invPageInfo"></span>
+          <div class="actions">
+            <button class="btn btn-ghost btn-sm" id="invPrev">السابق</button>
+            <button class="btn btn-ghost btn-sm" id="invNext">التالي</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <!-- Projects -->
   <section data-pane="projects" hidden>
     <div class="card">
@@ -60,7 +109,7 @@
       <p class="hint" style="margin-top:0">لكل مشروع لغة إدخال وحقول إجبارية وقائمة فئات خاصة به. كل مستخدم يعمل على مشروع واحد، ويرى إعدادات مشروعه وفئاته على هاتفه.</p>
       <div class="table-wrap">
         <table>
-          <thead><tr><th>المشروع</th><th>الحالة</th><th>لغة الإدخال</th><th>الحقول الإجبارية</th><th>الفئات</th><th>المستخدمون</th><th></th></tr></thead>
+          <thead><tr><th>المشروع</th><th>الحالة</th><th>لغة الإدخال</th><th>الحقول الإجبارية</th><th>الفئات</th><th>المستخدمون</th><th>الأصول المرفوعة</th><th></th></tr></thead>
           <tbody id="projBody"></tbody>
         </table>
       </div>
@@ -190,9 +239,31 @@
   </div>
 </div>
 
+<!-- Asset detail modal -->
+<div class="modal-bg" id="assetModal">
+  <div class="modal wide">
+    <div class="card-head"><div><h2 id="am_tag" class="mono">—</h2><div class="sub" id="am_sub"></div></div>
+      <button class="btn btn-ghost btn-sm" type="button" data-close>إغلاق</button></div>
+    <div id="am_photos" style="display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:8px; margin-bottom:14px;"></div>
+    <div class="table-wrap"><table><tbody id="am_fields"></tbody></table></div>
+  </div>
+</div>
+
+<!-- Photos export modal -->
+<div class="modal-bg" id="photosModal">
+  <div class="modal" style="max-width:560px">
+    <h2>تنزيل الصور</h2>
+    <p class="hint">الصور كثيرة الحجم، فتُنزَّل على أجزاء: كل جزء ملف ZIP يحتوي صور مجموعة من الأصول مرتبة برقم الأصل، بنفس أسماء ملفات تصدير الهاتف (رقم-1.jpg، رقم-label.jpg). أبقِ الصفحة مفتوحة حتى يكتمل الجزء.</p>
+    <div class="dev-list" id="photoParts"></div>
+    <div class="form-err" id="photosErr"></div>
+    <div class="modal-foot"><button class="btn btn-ghost" type="button" data-close>إغلاق</button></div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script src="/vendor/xlsx.full.min.js"></script>
+<script src="/vendor/jszip.min.js"></script>
 <script>
 const $ = (id)=> document.getElementById(id);
 const TOKEN_KEY = 'jard_company_token';
@@ -271,6 +342,7 @@ $('tabs').addEventListener('click', (e)=>{
 function showTab(name){
   document.querySelectorAll('#tabs .tab').forEach(t=> t.classList.toggle('on', t.dataset.tab === name));
   document.querySelectorAll('[data-pane]').forEach(p=> p.hidden = p.dataset.pane !== name);
+  if(name === 'inventory' && data?.sync) loadInventory();
 }
 
 // ---------- render ----------
@@ -292,7 +364,8 @@ function render(){
     ['الأجهزة المسجّلة', `${totalDevices} <small>/ ${c.maxUsers * c.maxDevicesPerUser}</small>`, `${c.maxDevicesPerUser} لكل مستخدم`, usedPct(totalDevices, c.maxUsers * c.maxDevicesPerUser)],
     ['طلبات الذكاء الاصطناعي هذا الشهر', c.aiEnabled ? `${c.usage.count}${c.aiMonthlyCap ? ` <small>/ ${c.aiMonthlyCap}</small>` : ''}` : '<small>غير مفعّل</small>',
       c.aiEnabled && !c.aiMonthlyCap ? 'بلا حد شهري' : '', c.aiMonthlyCap ? usedPct(c.usage.count, c.aiMonthlyCap) : null],
-    ['المشاريع', String(data.projects.length), '']
+    ['المشاريع', String(data.projects.length), ''],
+    ...(data.sync && c.assetCount != null ? [['الأصول المرفوعة للخادم', String(c.assetCount), 'من كل المشاريع']] : [])
   ];
   $('licTiles').innerHTML = tiles.map(([k,v,s,p])=>`<div class="tile"><div class="k">${k}</div><div class="v">${v}</div>
     ${s ? `<div class="sub" style="font-size:12px">${s}</div>` : ''}${p != null && p !== '' ? `<div class="bar"><i style="width:${p}%"></i></div>` : ''}</div>`).join('');
@@ -304,11 +377,12 @@ function render(){
     <td>${p.settings.required.length ? `<span class="pill" title="${esc(p.settings.required.map(k=>FIELD_NAME[k]).join('، '))}">${p.settings.required.length} حقل</span>` : '<span class="sub">الأساسية فقط</span>'}${p.settings.minPhotos > 1 ? ` <span class="pill">${p.settings.minPhotos} صور</span>` : ''}</td>
     <td>${p.categoryCount ? `<span class="stat">${p.categoryCount}</span> رئيسية · <span class="stat">${p.subCategoryCount}</span> فرعية` : '<span class="sub">لم تُستورد</span>'}</td>
     <td class="stat">${p.userCount}</td>
+    <td class="stat">${p.assetCount == null ? '—' : p.assetCount}</td>
     <td><div class="actions">
       <button class="btn btn-ghost btn-sm" data-edit-proj="${esc(p.id)}">الإعدادات</button>
       <button class="btn btn-ghost btn-sm" data-cats="${esc(p.id)}">الفئات</button>
       <button class="btn btn-danger btn-sm" data-del-proj="${esc(p.id)}">حذف</button>
-    </div></td></tr>`).join('') : '<tr><td colspan="7" class="empty">لا توجد مشاريع بعد. أنشئ أول مشروع، ثم أضف المستخدمين إليه.</td></tr>';
+    </div></td></tr>`).join('') : '<tr><td colspan="8" class="empty">لا توجد مشاريع بعد. أنشئ أول مشروع، ثم أضف المستخدمين إليه.</td></tr>';
 
   const projById = Object.fromEntries(data.projects.map(p=>[p.id,p]));
   const full = c.userCount >= c.maxUsers;
@@ -328,6 +402,7 @@ function render(){
     </div></td></tr>`).join('')
     : `<tr><td colspan="7" class="empty">${data.projects.length ? 'لا يوجد مستخدمون بعد.' : 'أنشئ مشروعًا أولًا من تبويب «المشاريع»، ثم أضف المستخدمين.'}</td></tr>`;
 
+  renderInventoryShell();
   $('m_user').value = data.me.username;
   if(document.activeElement !== $('m_display')) $('m_display').value = data.me.displayName || '';
 }
@@ -558,6 +633,221 @@ document.addEventListener('click', async (e)=>{
       if(d.ok){ toast('تم الحذف'); load(); } else toast(d.message || 'تعذّر الحذف');
     }
   }
+});
+
+// ---------- inventory (synced from phones) ----------
+const PAGE = 50;
+const inv = {projectId: '', offset: 0, total: 0, rows: [], q: '', stats: null, seq: 0};
+const CONDITION_AR = {'Good':'جيد','New':'جديد','Fair':'متوسط','Needs Maintenance':'يحتاج صيانة'};
+const fmtTime = (iso)=> iso ? esc(new Date(iso).toLocaleString('en-GB', {dateStyle:'short', timeStyle:'short'})) : '—';
+
+function renderInventoryShell(){
+  $('invOff').hidden = !!data.sync;
+  $('invOn').hidden = !data.sync;
+  if(!data.sync) return;
+  const sel = $('invProject');
+  const keep = inv.projectId && data.projects.some(p=> p.id === inv.projectId) ? inv.projectId : data.projects[0]?.id || '';
+  sel.innerHTML = data.projects.map(p=>`<option value="${esc(p.id)}">${esc(p.name)}${p.assetCount ? ` (${p.assetCount})` : ''}</option>`).join('');
+  sel.value = inv.projectId = keep;
+  if(!document.querySelector('[data-pane=inventory]').hidden) loadInventory();
+}
+$('invProject').addEventListener('change', ()=>{ inv.projectId = $('invProject').value; inv.offset = 0; loadInventory(); });
+$('invReload').addEventListener('click', ()=> loadInventory());
+let searchTimer = null;
+$('invSearch').addEventListener('input', ()=>{
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(()=>{ inv.q = $('invSearch').value.trim(); inv.offset = 0; loadAssetsPage(); }, 350);
+});
+$('invPrev').addEventListener('click', ()=>{ inv.offset = Math.max(0, inv.offset - PAGE); loadAssetsPage(); });
+$('invNext').addEventListener('click', ()=>{ if(inv.offset + PAGE < inv.total){ inv.offset += PAGE; loadAssetsPage(); } });
+
+async function loadInventory(){
+  if(!inv.projectId){ $('invTiles').innerHTML = '<div class="hint">أنشئ مشروعًا أولًا.</div>'; return; }
+  const d = await call('inventoryStats', {projectId: inv.projectId});
+  if(!d.ok){ $('invTiles').innerHTML = `<div class="form-err">${esc(d.message || 'تعذّر التحميل')}</div>`; return; }
+  const st = inv.stats = d.stats;
+  $('invTiles').innerHTML = [
+    ['الأصول', st.total], ['موسومة للحذف', st.flagged], ['الصور', st.photos],
+    ['آخر رفع', st.lastSync ? `<span style="font-size:14px">${fmtTime(st.lastSync)}</span>` : '—']
+  ].map(([k,v])=>`<div class="tile"><div class="k">${k}</div><div class="v">${v}</div></div>`).join('');
+  $('invByUser').innerHTML = st.byUser.length ? st.byUser.map(u=>`<tr><td class="mono">${esc(u.username)}</td><td class="stat">${u.count}</td><td class="mono">${fmtTime(u.lastSync)}</td></tr>`).join('')
+    : '<tr><td colspan="3" class="empty">لم يُرفع شيء بعد</td></tr>';
+  $('invByBuilding').innerHTML = st.byBuilding.length ? st.byBuilding.map(b=>`<tr><td>${esc(b.building)}</td><td class="stat">${b.count}</td></tr>`).join('')
+    : '<tr><td colspan="2" class="empty">—</td></tr>';
+  loadAssetsPage();
+}
+
+async function loadAssetsPage(){
+  const seq = ++inv.seq;
+  $('invBody').innerHTML = '<tr><td colspan="7" class="empty">جارٍ التحميل...</td></tr>';
+  const d = await call('listAssets', {projectId: inv.projectId, q: inv.q, limit: PAGE, offset: inv.offset});
+  if(seq !== inv.seq) return;
+  if(!d.ok){ $('invBody').innerHTML = `<tr><td colspan="7" class="form-err">${esc(d.message || 'تعذّر التحميل')}</td></tr>`; return; }
+  inv.total = d.total; inv.rows = d.rows;
+  $('invBody').innerHTML = d.rows.length ? d.rows.map((a,i)=>{
+    const x = a.data || {};
+    return `<tr data-asset="${i}" style="cursor:pointer">
+      <td>${a.thumbUrl ? `<img src="${esc(a.thumbUrl)}" alt="" style="width:48px;height:48px;object-fit:cover;border-radius:8px;display:block" loading="lazy">` : '<div style="width:48px;height:48px;border-radius:8px;background:var(--muted)"></div>'}</td>
+      <td class="mono"><b>${esc(a.tag || '—')}</b>${a.flagged ? ' <span class="pill bad">للحذف</span>' : ''}</td>
+      <td>${esc(x.name || '—')}</td>
+      <td>${esc(x.category || '—')}${x.subCategory ? `<div class="sub">${esc(x.subCategory)}</div>` : ''}</td>
+      <td>${esc([x.building, x.location].filter(Boolean).join(' - ') || '—')}</td>
+      <td class="mono">${esc(a.username)}</td>
+      <td class="mono">${fmtTime(a.syncedAt)}</td></tr>`;
+  }).join('') : `<tr><td colspan="7" class="empty">${inv.q ? 'لا توجد نتائج' : 'لا توجد أصول مرفوعة في هذا المشروع بعد'}</td></tr>`;
+  const from = d.total ? inv.offset + 1 : 0, to = Math.min(inv.offset + PAGE, d.total);
+  $('invPageInfo').textContent = d.total ? `${from}-${to} من ${d.total}` : '';
+  $('invPrev').disabled = inv.offset === 0;
+  $('invNext').disabled = inv.offset + PAGE >= d.total;
+}
+
+$('invBody').addEventListener('click', (e)=>{
+  const tr = e.target.closest('[data-asset]'); if(!tr) return;
+  openAsset(inv.rows[Number(tr.dataset.asset)]);
+});
+async function openAsset(a){
+  const x = a.data || {};
+  $('am_tag').textContent = a.tag || '—';
+  $('am_sub').textContent = `${a.username} · رُفع ${a.syncedAt ? new Date(a.syncedAt).toLocaleString('en-GB') : '—'}`;
+  const rows = [
+    ['الوصف', x.name], ['الفئة', [x.catCode, x.category].filter(Boolean).join(' · ')],
+    ['الفئة الفرعية', [x.subCategoryCode, x.subCategory].filter(Boolean).join(' · ')],
+    ['الحالة', CONDITION_AR[x.condition] || x.condition], ['المبنى', x.building], ['الموقع / الغرفة', x.location],
+    ['الماركة', x.brand], ['الموديل', x.model], ['الرقم التسلسلي', x.sn], ['رقم اللوحة', x.plateNo],
+    ['القيمة', x.value], ['الملاحظات', x.notes],
+    ...(x.deleteFlag ? [['سبب وسم الحذف', x.deleteFlag.reason]] : [])
+  ].filter(([,v])=> v != null && v !== '');
+  $('am_fields').innerHTML = rows.map(([k,v])=>`<tr><th style="width:160px">${k}</th><td>${esc(v)}</td></tr>`).join('');
+  const hashes = [...a.photos, ...(a.label ? [a.label] : [])];
+  $('am_photos').innerHTML = hashes.length ? '<div class="sub">جارٍ تحميل الصور...</div>' : '<div class="sub">لا توجد صور</div>';
+  openModal('assetModal');
+  if(!hashes.length) return;
+  const d = await call('signPhotos', {hashes});
+  if(!d.ok){ $('am_photos').innerHTML = `<div class="form-err">${esc(d.message || '')}</div>`; return; }
+  $('am_photos').innerHTML = hashes.map(h=> d.urls[h]
+    ? `<a href="${esc(d.urls[h])}" target="_blank" rel="noopener"><img src="${esc(d.urls[h])}" alt="" style="width:100%;aspect-ratio:1;object-fit:cover;border-radius:10px;display:block">${h === a.label ? '<div class="sub" style="text-align:center">لوحة البيانات</div>' : ''}</a>`
+    : '<div class="sub">الصورة لم تُرفع بعد</div>').join('');
+}
+
+// Loads every asset of the project (records only, no images) in pages of 1000.
+async function fetchAllAssets(onProgress){
+  const all = [];
+  for(let off = 0; ; off += 1000){
+    const d = await call('listAssets', {projectId: inv.projectId, limit: 1000, offset: off, thumbs: false});
+    if(!d.ok) throw new Error(d.message || 'تعذّر التحميل');
+    all.push(...d.rows);
+    onProgress && onProgress(all.length, d.total);
+    if(all.length >= d.total || !d.rows.length) break;
+  }
+  return all;
+}
+const projName = ()=> (data.projects.find(p=> p.id === inv.projectId)?.name || 'project').replace(/[\\/:*?"<>|]/g, '_');
+
+$('invExcel').addEventListener('click', async ()=>{
+  const btn = $('invExcel'); btn.disabled = true;
+  try{
+    const all = await fetchAllAssets((n, t)=> btn.textContent = `جارٍ التحميل ${n}/${t}`);
+    if(!all.length){ toast('لا توجد أصول مرفوعة في هذا المشروع'); return; }
+    const HEADERS = ['Barcode','Category Code','Category Name','Sub Category Code','Sub Category Name','Description','Brand','Condition','Model','SN','PlateNo','Location','Building  Id','Remarks','Value'];
+    const row = (a)=>{ const x = a.data || {}; return {
+      'Barcode': a.tag || '', 'Category Code': x.catCode || '', 'Category Name': x.category || '',
+      'Sub Category Code': x.subCategoryCode || '', 'Sub Category Name': x.subCategory || '', 'Description': x.name || '',
+      'Brand': x.brand || '', 'Condition': x.condition || '', 'Model': x.model || '', 'SN': x.sn || '', 'PlateNo': x.plateNo || '',
+      'Location': x.location || '', 'Building  Id': x.building || '', 'Remarks': x.notes || '',
+      'Value': x.value ? Number(x.value) || x.value : '' }; };
+    const ws = XLSX.utils.json_to_sheet(all.filter(a=> !a.flagged).map(row), {header: HEADERS});
+    ws['!cols'] = [{wch:14},{wch:12},{wch:16},{wch:14},{wch:16},{wch:30},{wch:12},{wch:10},{wch:12},{wch:14},{wch:10},{wch:12},{wch:10},{wch:22},{wch:10}];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'جرد الأصول');
+    const flagged = all.filter(a=> a.flagged);
+    if(flagged.length){
+      const fws = XLSX.utils.json_to_sheet(flagged.map(a=>({
+        'Barcode': a.tag || '', 'Description': a.data?.name || '', 'Category Name': a.data?.category || '',
+        'Location': a.data?.location || '', 'Building  Id': a.data?.building || '',
+        'سبب الحذف': a.data?.deleteFlag?.reason || '',
+        'تاريخ الوسم': a.data?.deleteFlag?.at ? new Date(a.data.deleteFlag.at).toISOString().slice(0,10) : '',
+        'المستخدم': a.username
+      })));
+      fws['!cols'] = [{wch:14},{wch:30},{wch:16},{wch:12},{wch:10},{wch:30},{wch:12},{wch:16}];
+      XLSX.utils.book_append_sheet(wb, fws, 'مطلوب حذفها');
+    }
+    XLSX.writeFile(wb, `جرد_${projName()}_${new Date().toISOString().slice(0,10)}.xlsx`);
+    toast(`تم تصدير ${all.length - flagged.length} أصل${flagged.length ? ` و${flagged.length} في ورقة «مطلوب حذفها»` : ''}`);
+  }catch(e){ toast(e.message || 'تعذّر التصدير'); }
+  finally{ btn.disabled = false; btn.textContent = 'تصدير Excel'; }
+});
+
+// Photos: split into ZIP parts so the browser never holds the whole project at once.
+const PART = 150;
+let photoAssets = [];
+$('invPhotosBtn').addEventListener('click', async ()=>{
+  $('photosErr').textContent = '';
+  $('photoParts').innerHTML = '<div class="sub">جارٍ تجهيز القائمة...</div>';
+  openModal('photosModal');
+  try{
+    photoAssets = (await fetchAllAssets()).filter(a=> a.photos.length || a.label);
+  }catch(e){ $('photoParts').innerHTML = ''; $('photosErr').textContent = e.message; return; }
+  if(!photoAssets.length){ $('photoParts').innerHTML = '<div class="hint">لا توجد صور مرفوعة في هذا المشروع بعد.</div>'; return; }
+  const parts = Math.ceil(photoAssets.length / PART);
+  $('photoParts').innerHTML = Array.from({length: parts}, (_, i)=>{
+    const first = photoAssets[i * PART], last = photoAssets[Math.min(photoAssets.length, (i + 1) * PART) - 1];
+    const n = Math.min(PART, photoAssets.length - i * PART);
+    const count = photoAssets.slice(i * PART, i * PART + n).reduce((s, a)=> s + a.photos.length + (a.label ? 1 : 0), 0);
+    return `<div class="dev"><div><b>الجزء ${i + 1}</b> <span class="sub">${n} أصل · ${count} صورة</span>
+      <div class="sub mono" style="font-size:12px">${esc(first.tag || '—')} ← ${esc(last.tag || '—')}</div></div>
+      <button class="btn btn-ghost btn-sm" data-part="${i}">تنزيل</button></div>`;
+  }).join('');
+});
+$('photoParts').addEventListener('click', async (e)=>{
+  const b = e.target.closest('[data-part]'); if(!b) return;
+  const i = Number(b.dataset.part);
+  const list = photoAssets.slice(i * PART, (i + 1) * PART);
+  b.disabled = true;
+  try{
+    const hashes = [...new Set(list.flatMap(a=> [...a.photos, ...(a.label ? [a.label] : [])]))];
+    const urls = {};
+    for(let k = 0; k < hashes.length; k += 500){
+      const d = await call('signPhotos', {hashes: hashes.slice(k, k + 500)});
+      if(!d.ok) throw new Error(d.message || 'تعذّر التحميل');
+      Object.assign(urls, d.urls);
+    }
+    const zip = new JSZip();
+    const used = new Set();
+    const unique = (base)=>{ let n = `${base}.jpg`, j = 2; while(used.has(n)) n = `${base}_${j++}.jpg`; used.add(n); return n; };
+    const jobs = [];
+    for(const a of list){
+      const safe = (a.tag || 'اصل').replace(/[\\/:*?"<>|]/g, '-');
+      a.photos.forEach((h, n)=> jobs.push({h, name: unique(`${safe}-${n + 1}`)}));
+      if(a.label) jobs.push({h: a.label, name: unique(`${safe}-label`)});
+    }
+    let done = 0, missing = 0;
+    const worker = async ()=>{
+      while(jobs.length){
+        const j = jobs.shift();
+        try{
+          if(!urls[j.h]) throw 0;
+          const r = await fetch(urls[j.h]);
+          if(!r.ok) throw 0;
+          zip.file(j.name, await r.blob());
+        }catch{ missing++; }
+        done++;
+        b.textContent = `${done}/${done + jobs.length}`;
+      }
+    };
+    await Promise.all([worker(), worker(), worker(), worker()]);
+    b.textContent = 'جارٍ الضغط...';
+    const blob = await zip.generateAsync({type: 'blob'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `صور_${projName()}_جزء${i + 1}.zip`;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=> URL.revokeObjectURL(a.href), 60000);
+    b.textContent = 'تم ✓';
+    if(missing) $('photosErr').textContent = `${missing} صورة لم تُنزَّل (قد لا تكون رُفعت بعد من الهاتف).`;
+  }catch(err){
+    $('photosErr').textContent = err.message || 'تعذّر التنزيل';
+    b.textContent = 'إعادة المحاولة';
+  }finally{ b.disabled = false; }
 });
 
 // ---------- my account ----------

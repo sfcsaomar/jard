@@ -213,14 +213,14 @@ function renderCompany(s){
     : '<div class="hint">لا يوجد مدير لهذه الشركة بعد. أضف مديرًا ليتمكن العميل من إدارة حسابه.</div>';
 
   const projects = s.projects.length ? `<div class="table-wrap"><table>
-      <thead><tr><th>المشروع</th><th>الحالة</th><th>لغة الإدخال</th><th>حقول إجبارية</th><th>الفئات</th><th>المستخدمون</th></tr></thead><tbody>
+      <thead><tr><th>المشروع</th><th>الحالة</th><th>لغة الإدخال</th><th>حقول إجبارية</th><th>الفئات</th><th>المستخدمون</th><th>الأصول</th></tr></thead><tbody>
       ${s.projects.map(p=>`<tr>
         <td><b>${esc(p.name)}</b></td>
         <td>${p.active ? '<span class="pill ok">فعّال</span>' : '<span class="pill bad">موقوف</span>'}</td>
         <td>${langName(p.settings.lang)}</td>
         <td class="stat">${p.settings.required.length}${p.settings.minPhotos>1 ? ` · ${p.settings.minPhotos} صور` : ''}</td>
         <td class="stat">${p.categoryCount} / ${p.subCategoryCount}</td>
-        <td class="stat">${p.userCount}</td></tr>`).join('')}
+        <td class="stat">${p.userCount}</td><td class="stat">${p.assetCount == null ? '—' : p.assetCount}</td></tr>`).join('')}
       </tbody></table></div>`
     : '<div class="hint">لم يُنشئ مدير الشركة أي مشروع بعد.</div>';
 
@@ -250,6 +250,7 @@ function renderCompany(s){
           <span>أجهزة/مستخدم <b class="mono">${c.maxDevicesPerUser}</b></span>
           <span>المشاريع <b class="mono">${s.projects.length}</b></span>
           <span>AI هذا الشهر <b class="mono">${ai}</b></span>
+          ${c.assetCount != null ? `<span>الأصول المرفوعة <b class="mono">${c.assetCount}</b></span>` : ''}
           ${c.contactName || c.contactPhone ? `<span>${esc(c.contactName)} <span class="mono">${esc(c.contactPhone)}</span></span>` : ''}
         </div>
         ${c.notes ? `<div class="sub" style="margin-top:6px">${esc(c.notes)}</div>` : ''}

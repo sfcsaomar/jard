@@ -3,6 +3,13 @@ import {
   err, store, getJSON, setJSON, hashPassword, userKey, licKey, normUser, usageKey, monthStr,
   normSettings, normCategories, projectKey, listPrefix, isAdminRole, newId, ensureProjects, normTerm
 } from './common.mjs';
+import { syncEnabled, rpc } from './supa.mjs';
+
+// Asset counts per project from the synced inventory; empty when sync is off or unreachable.
+export async function assetCounts(companyId) {
+  if (!syncEnabled()) return null;
+  try { return (await rpc('company_counts', { p_company: companyId })) || {}; } catch { return null; }
+}
 
 const USERNAME_RE = /^[a-z0-9._-]{3,40}$/;
 
@@ -73,10 +80,13 @@ export async function companySnapshot(company, { withNotes = false } = {}) {
   const pub = publicCompany(company);
   if (withNotes) pub.notes = company.notes || '';
   projects.sort((a, b) => String(a.createdAt).localeCompare(String(b.createdAt)));
+  const counts = await assetCounts(company.id);
+  const assetTotal = counts ? Object.values(counts).reduce((n, c) => n + Number(c || 0), 0) : null;
   return {
     month: m,
-    company: { ...pub, usage: { count: usage.count || 0 }, userCount: fieldUsers.length },
-    projects: projects.map((p) => publicProject(p, fieldUsers)),
+    sync: syncEnabled(),
+    company: { ...pub, usage: { count: usage.count || 0 }, userCount: fieldUsers.length, assetCount: assetTotal },
+    projects: projects.map((p) => ({ ...publicProject(p, fieldUsers), assetCount: counts ? Number(counts[p.id] || 0) : null })),
     users: fieldUsers.map(publicUser),
     admins: users.filter(isAdminRole).map(publicUser)
   };
@@ -185,6 +195,10 @@ export async function getProject(company, projectId) {
 export async function deleteProject(company, projectId) {
   const users = (await companyUsers(company.id)).filter((u) => u.projectId === projectId && !isAdminRole(u));
   if (users.length) return err(400, 'has_users', 'انقل مستخدمي هذا المشروع إلى مشروع آخر أولًا');
+  const counts = await assetCounts(company.id);
+  if (counts && Number(counts[projectId] || 0) > 0) {
+    return err(400, 'has_assets', 'لهذا المشروع أصول مرفوعة على الخادم، فلا يمكن حذفه. يمكنك إيقافه بدل الحذف');
+  }
   const projects = await listPrefix(`projects/${company.id}/`);
   if (projects.length <= 1) return err(400, 'last_project', 'لا يمكن حذف آخر مشروع في الشركة');
   await store().delete(projectKey(company.id, projectId));

@@ -8,6 +8,7 @@ import {
   companySnapshot, saveAccount, removeDevice, deleteAccount, saveProject, setCategories, getProject,
   deleteProject, loadCompany, publicUser, ownedUser
 } from '../lib/accounts.mjs';
+import { syncEnabled, rpc, signDownloads, photoPath, thumbPath, HASH_RE } from '../lib/supa.mjs';
 
 const SESSION_HOURS = 12;
 const ok = (body = {}) => json(200, { ok: true, ...body });
@@ -76,6 +77,39 @@ const actions = {
     if (!u || isAdminRole(u)) return err(404, 'not_found', 'المستخدم غير موجود');
     return (await deleteAccount(company, username)) || ok();
   },
+  // ---------- synced inventory ----------
+  async inventoryStats({ company }, { projectId }) {
+    if (!syncEnabled()) return err(503, 'sync_off', 'المزامنة غير مفعّلة على الخادم');
+    if (!(await getProject(company, projectId))) return err(404, 'not_found', 'المشروع غير موجود');
+    try { return ok({ stats: await rpc('project_stats', { p_company: company.id, p_project: projectId }) }); }
+    catch { return err(502, 'sync_failed', 'تعذّر الاتصال بخادم البيانات'); }
+  },
+  async listAssets({ company }, { projectId, q, limit, offset, thumbs }) {
+    if (!syncEnabled()) return err(503, 'sync_off', 'المزامنة غير مفعّلة على الخادم');
+    if (!(await getProject(company, projectId))) return err(404, 'not_found', 'المشروع غير موجود');
+    try {
+      const r = await rpc('list_assets', {
+        p_company: company.id, p_project: projectId, p_q: String(q || '').slice(0, 80),
+        p_limit: Math.min(2000, Math.max(1, Number(limit) || 50)), p_offset: Math.max(0, Number(offset) || 0)
+      });
+      if (thumbs !== false) {
+        const first = r.rows.map((a) => a.photos[0]).filter(Boolean);
+        const urls = await signDownloads(first.map((h) => thumbPath(company.id, h)), 3600);
+        for (const a of r.rows) a.thumbUrl = a.photos[0] ? urls[thumbPath(company.id, a.photos[0])] || null : null;
+      }
+      return ok(r);
+    } catch { return err(502, 'sync_failed', 'تعذّر الاتصال بخادم البيانات'); }
+  },
+  async signPhotos({ company }, { hashes, thumbs }) {
+    if (!syncEnabled()) return err(503, 'sync_off', 'المزامنة غير مفعّلة على الخادم');
+    const list = [...new Set((hashes || []).filter((h) => HASH_RE.test(h)))].slice(0, 1000);
+    const pathOf = (h) => (thumbs ? thumbPath(company.id, h) : photoPath(company.id, h));
+    try {
+      const urls = await signDownloads(list.map(pathOf), 3 * 3600);
+      return ok({ urls: Object.fromEntries(list.map((h) => [h, urls[pathOf(h)] || null])) });
+    } catch { return err(502, 'sync_failed', 'تعذّر الاتصال بخادم التخزين'); }
+  },
+
   async updateMe({ user }, { displayName, currentPassword, newPassword }) {
     if (typeof displayName === 'string') user.displayName = displayName.trim().slice(0, 80);
     if (newPassword) {
