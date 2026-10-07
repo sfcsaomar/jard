@@ -20,6 +20,7 @@
     <div class="form-err" id="loginErr"></div>
     <button class="btn btn-primary" style="width:100%" type="submit">دخول</button>
   </form>
+  <p style="text-align:center; margin-top:12px; font-size:13px"><a href="/account" style="color:var(--tag)">نسيت كلمة المرور؟</a></p>
   <p class="hint" style="margin-top:16px">
     <b>دخول الطوارئ:</b> اترك اسم المستخدم فارغًا، واكتب كلمة المرور المحفوظة في Netlify باسم <span class="mono">ADMIN_PASSWORD</span>.
     استخدمه لإنشاء أول حساب، أو إذا نسيت كلمة مرورك.
@@ -39,6 +40,15 @@
     </div>
   </header>
 
+  <div class="card" id="noticeCard" hidden style="border-color:#F0CDB9; background:#FBEDE5;"></div>
+  <div class="card" id="storageCard" hidden>
+    <div class="card-head" style="margin-bottom:6px">
+      <h2>تخزين الصور</h2>
+      <button class="btn btn-ghost btn-sm" id="cleanupBtn" hidden>حذف صور الشركات المحذوفة</button>
+    </div>
+    <div class="sub" id="storageText"></div>
+    <div class="bar" style="height:8px"><i id="storageBar" style="width:0"></i></div>
+  </div>
   <div class="card" id="emgCard" hidden style="border-color:#F0CDB9; background:#FBEDE5;">
     <b>أنت داخل بكلمة الطوارئ.</b>
     <span class="sub" style="color:var(--warn)">أنشئ حسابًا باسمك من «حسابات المزوّد» بالأسفل، ثم ادخل به. كلمة الطوارئ تبقى للاستعادة فقط.</span>
@@ -68,7 +78,7 @@
       </div>
     </div>
     <div class="table-wrap"><table>
-      <thead><tr><th>اسم المستخدم</th><th>الاسم</th><th>الحالة</th><th>آخر دخول</th><th></th></tr></thead>
+      <thead><tr><th>اسم المستخدم</th><th>الاسم</th><th>البريد</th><th>الحالة</th><th>آخر دخول</th><th></th></tr></thead>
       <tbody id="superBody"></tbody>
     </table></div>
   </div>
@@ -81,11 +91,12 @@
     <div class="grid">
       <div><label>اسم المستخدم</label><input id="s_username" dir="ltr" autocapitalize="none" required></div>
       <div><label>الاسم الظاهر</label><input id="s_display"></div>
+      <div style="grid-column:1/-1"><label>البريد الإلكتروني</label><input id="s_email" type="email" dir="ltr" required autocomplete="off"></div>
       <div><label id="s_passLbl">كلمة المرور (10 أحرف على الأقل)</label><input id="s_password" dir="ltr" autocomplete="new-password"></div>
       <div style="align-self:end"><button type="button" class="btn btn-ghost btn-sm" id="sGenBtn">توليد كلمة مرور</button></div>
       <div class="check"><input type="checkbox" id="s_active" checked><label for="s_active">الحساب فعّال</label></div>
     </div>
-    <p class="hint">احفظ كلمة المرور في مكان آمن قبل الإغلاق؛ لا يمكن عرضها لاحقًا، ويمكن فقط تعيين كلمة جديدة.</p>
+    <p class="hint">اترك كلمة المرور فارغة لإرسال دعوة إلى البريد، فيضع صاحب الحساب كلمة مروره بنفسه. وإن وضعتها هنا فاحفظها؛ لا يمكن عرضها لاحقًا.</p>
     <div class="form-err" id="supErr"></div>
     <div class="modal-foot">
       <button class="btn btn-primary" type="submit">حفظ</button>
@@ -97,9 +108,11 @@
 <!-- My password modal -->
 <div class="modal-bg" id="myModal">
   <form class="modal" id="myForm" style="max-width:440px">
-    <h2>تغيير كلمة مروري</h2>
+    <h2>حسابي</h2>
     <div class="grid" style="grid-template-columns:1fr">
       <div><label>الاسم الظاهر</label><input id="my_display"></div>
+      <div><label>البريد الإلكتروني</label><input id="my_email" type="email" dir="ltr" required><div class="sub" id="my_emailState" style="font-size:12px;margin-top:4px"></div></div>
+      <div class="section-title" style="margin-top:4px">تغيير كلمة المرور (اختياري)</div>
       <div><label>كلمة المرور الحالية</label><input id="my_cur" type="password" dir="ltr" autocomplete="current-password"></div>
       <div><label>كلمة المرور الجديدة (10 أحرف على الأقل)</label><input id="my_new" type="password" dir="ltr" autocomplete="new-password"></div>
     </div>
@@ -167,11 +180,12 @@
     <div class="grid">
       <div><label>اسم المستخدم</label><input id="a_username" dir="ltr" autocapitalize="none" required></div>
       <div><label>الاسم الظاهر</label><input id="a_display"></div>
+      <div style="grid-column:1/-1"><label>البريد الإلكتروني</label><input id="a_email" type="email" dir="ltr" required autocomplete="off"><div class="sub" id="a_emailState" style="font-size:12px;margin-top:4px"></div></div>
       <div><label id="a_passLbl">كلمة المرور</label><input id="a_password" dir="ltr" autocomplete="new-password"></div>
       <div style="align-self:end"><button type="button" class="btn btn-ghost btn-sm" id="aGenBtn">توليد كلمة مرور</button></div>
       <div class="check"><input type="checkbox" id="a_active" checked><label for="a_active">الحساب فعّال</label></div>
     </div>
-    <p class="hint">اسم المستخدم بالإنجليزية الصغيرة (3-40 حرفًا). عند الحفظ تُنسخ بيانات الدخول ورابط لوحة الشركة لإرسالها للعميل.</p>
+    <p class="hint">اسم المستخدم بالإنجليزية الصغيرة (3-40 حرفًا). اترك كلمة المرور فارغة لإرسال دعوة إلى بريد مدير الشركة ليضع كلمة مروره بنفسه (موصى به). وإن وضعتها، تُنسخ بيانات الدخول لترسلها له.</p>
     <div class="form-err" id="adErr"></div>
     <div class="modal-foot">
       <button class="btn btn-primary" type="submit">حفظ</button>
@@ -264,17 +278,36 @@ function render(d){
   $('meLbl').textContent = me.emergency ? 'دخول الطوارئ' : (me.displayName || me.username || '');
   $('emgCard').hidden = !me.emergency;
   $('myPassBtn').hidden = !!me.emergency;
+  const notes = [];
+  if(d.mail === false) notes.push('<b>إرسال البريد غير مفعّل:</b> أضف RESEND_API_KEY في Netlify. حتى ذلك الحين تظهر روابط الدعوة لتنسخها وترسلها بنفسك.');
+  if(!me.emergency && !me.email) notes.push('<b>أضف بريدك</b> من «تغيير كلمة مروري» لتستطيع استعادة كلمة المرور بنفسك.');
+  else if(!me.emergency && !me.emailVerified) notes.push('<b>بريدك غير مؤكَّد:</b> افتح رابط التأكيد الذي وصلك، أو احفظ بريدك مرة أخرى لإرسال رابط جديد.');
+  $('noticeCard').innerHTML = notes.map(n=>`<div style="font-size:13.5px;line-height:1.8">${n}</div>`).join('');
+  $('noticeCard').hidden = !notes.length;
+  const st = d.storage;
+  $('storageCard').hidden = !st;
+  if(st){
+    const gb = (b)=> (Number(b)/1024**3).toFixed(2);
+    $('storageText').innerHTML = `<b class="mono">${gb(st.bytes)} GB</b> من <span class="mono">${gb(st.limitBytes)} GB</span> (${st.pct}%) · <span class="mono">${st.files}</span> ملف`
+      + (st.orphanFiles ? ` · <span class="pill bad">${st.orphanFiles} ملف لشركات محذوفة</span>` : '')
+      + (st.pct >= 80 ? '<br><b style="color:var(--warn)">اقترب التخزين من الحد. رقِّ خطة Supabase أو احذف صورًا قديمة قبل أن يفشل رفع الصور من الهواتف.</b>' : '');
+    $('storageBar').style.width = Math.min(100, st.pct) + '%';
+    $('storageBar').style.background = st.pct >= 80 ? 'var(--warn)' : 'var(--tag)';
+    $('cleanupBtn').hidden = !st.orphanFiles;
+  }
   const supers = d.superAdmins || [];
   $('superBody').innerHTML = supers.length ? supers.map(a=>`<tr>
       <td class="mono">${esc(a.username)}${a.username === me.username ? ' <span class="pill">أنت</span>' : ''}</td>
       <td>${esc(a.displayName || '—')}</td>
-      <td>${a.active ? '<span class="pill ok">فعّال</span>' : '<span class="pill bad">موقوف</span>'}</td>
+      <td>${emailCell(a)}</td>
+      <td>${a.pending ? '<span class="pill">بانتظار التفعيل</span>' : a.active ? '<span class="pill ok">فعّال</span>' : '<span class="pill bad">موقوف</span>'}</td>
       <td class="mono">${fmt(a.lastLogin)}</td>
       <td><div class="actions">
+        ${a.pending && a.email ? `<button class="btn btn-ghost btn-sm" data-resend="${esc(a.username)}">إعادة إرسال الدعوة</button>` : ''}
         <button class="btn btn-ghost btn-sm" data-edit-super="${esc(a.username)}">تعديل / كلمة مرور</button>
         ${a.username === me.username ? '' : `<button class="btn btn-danger btn-sm" data-del-super="${esc(a.username)}">حذف</button>`}
       </div></td></tr>`).join('')
-    : '<tr><td colspan="5" class="empty">لا توجد حسابات بعد. أنشئ حسابك الآن.</td></tr>';
+    : '<tr><td colspan="6" class="empty">لا توجد حسابات بعد. أنشئ حسابك الآن.</td></tr>';
   const q = $('search').value.trim().toLowerCase();
   const list = d.companies.filter(s=> !q || s.company.customer.toLowerCase().includes(q));
   $('coList').innerHTML = list.length ? list.map(renderCompany).join('')
@@ -285,12 +318,14 @@ function renderCompany(s){
   const c = s.company;
   const projById = Object.fromEntries(s.projects.map(p=>[p.id,p]));
   const admins = s.admins.length ? `<div class="table-wrap"><table>
-      <thead><tr><th>اسم المستخدم</th><th>الاسم</th><th>الحالة</th><th>آخر دخول</th><th></th></tr></thead><tbody>
+      <thead><tr><th>اسم المستخدم</th><th>الاسم</th><th>البريد</th><th>الحالة</th><th>آخر دخول</th><th></th></tr></thead><tbody>
       ${s.admins.map(a=>`<tr>
         <td class="mono">${esc(a.username)}</td><td>${esc(a.displayName || '—')}</td>
-        <td>${a.active ? '<span class="pill ok">فعّال</span>' : '<span class="pill bad">موقوف</span>'}</td>
+        <td>${emailCell(a)}</td>
+        <td>${a.pending ? '<span class="pill">بانتظار التفعيل</span>' : a.active ? '<span class="pill ok">فعّال</span>' : '<span class="pill bad">موقوف</span>'}</td>
         <td class="mono">${fmt(a.lastLogin)}</td>
         <td><div class="actions">
+          ${a.pending && a.email ? `<button class="btn btn-ghost btn-sm" data-resend="${esc(a.username)}">إعادة إرسال الدعوة</button>` : ''}
           <button class="btn btn-ghost btn-sm" data-edit-admin="${esc(c.id)}|${esc(a.username)}">تعديل / كلمة مرور</button>
           <button class="btn btn-danger btn-sm" data-del-user="${esc(c.id)}|${esc(a.username)}">حذف</button>
         </div></td></tr>`).join('')}
@@ -310,11 +345,12 @@ function renderCompany(s){
     : '<div class="hint">لم يُنشئ مدير الشركة أي مشروع بعد.</div>';
 
   const users = s.users.length ? `<div class="table-wrap"><table>
-      <thead><tr><th>اسم المستخدم</th><th>الاسم</th><th>المشروع</th><th>الحالة</th><th>الأجهزة</th><th>آخر دخول</th><th></th></tr></thead><tbody>
+      <thead><tr><th>اسم المستخدم</th><th>الاسم</th><th>البريد</th><th>المشروع</th><th>الحالة</th><th>الأجهزة</th><th>آخر دخول</th><th></th></tr></thead><tbody>
       ${s.users.map(u=>`<tr>
         <td class="mono">${esc(u.username)}</td><td>${esc(u.displayName || '—')}</td>
+        <td>${emailCell(u)}</td>
         <td>${esc(projById[u.projectId]?.name || '—')}</td>
-        <td>${u.active ? '<span class="pill ok">فعّال</span>' : '<span class="pill bad">موقوف</span>'}</td>
+        <td>${u.pending ? '<span class="pill">بانتظار التفعيل</span>' : u.active ? '<span class="pill ok">فعّال</span>' : '<span class="pill bad">موقوف</span>'}</td>
         <td class="stat">${u.devices.length}/${c.maxDevicesPerUser}</td>
         <td class="mono">${fmt(u.lastLogin)}</td>
         <td><div class="actions">
@@ -443,8 +479,10 @@ function openAdmin(companyId, a){
   $('a_username').value = a?.username || '';
   $('a_username').readOnly = !isNew;
   $('a_display').value = a?.displayName || '';
-  $('a_password').value = isNew ? genPassword() : '';
-  $('a_passLbl').textContent = isNew ? 'كلمة المرور' : 'كلمة مرور جديدة (اتركها فارغة للإبقاء)';
+  $('a_email').value = a?.email || '';
+  $('a_emailState').textContent = !a?.email ? '' : a.pending ? 'بانتظار التفعيل من رابط الدعوة' : a.emailVerified ? 'مؤكَّد ✓' : 'غير مؤكَّد';
+  $('a_password').value = '';
+  $('a_passLbl').textContent = isNew ? 'كلمة المرور (اتركها فارغة لإرسال دعوة)' : 'كلمة مرور جديدة (اتركها فارغة للإبقاء)';
   $('a_active').checked = a ? a.active : true;
   $('adErr').textContent = '';
   openModal('adModal');
@@ -453,17 +491,38 @@ $('adForm').addEventListener('submit', async (e)=>{
   e.preventDefault();
   const password = $('a_password').value;
   const d = await call('saveCompanyAdmin', {admin:{
-    companyId: $('a_company').value, username: $('a_username').value,
+    companyId: $('a_company').value, username: $('a_username').value, email: $('a_email').value,
     displayName: $('a_display').value, password: password || undefined, active: $('a_active').checked
   }});
   if(!d.ok){ $('adErr').textContent = d.message || 'تعذّر الحفظ'; return; }
   openCos.add($('a_company').value);
   closeModals(); load();
+  if(d.invite){ inviteResult(d.user, d.invite); return; }
+  if(d.verifySent) toast('تم الحفظ وأُرسل رابط تأكيد إلى البريد الجديد');
   if(password){
     const text = `لوحة إدارة الشركة: ${location.origin}/company\nاسم المستخدم: ${d.user.username}\nكلمة المرور: ${password}`;
     try{ await navigator.clipboard.writeText(text); toast('تم الحفظ ونسخ بيانات الدخول لإرسالها للعميل'); }
     catch{ prompt('بيانات الدخول (انسخها وأرسلها للعميل):', text.replace(/\n/g,' | ')); }
   } else toast('تم الحفظ');
+});
+
+// ---------- email helpers ----------
+function emailCell(u){
+  if(!u.email) return '<span class="sub">—</span>';
+  return `<span dir="ltr" style="font-size:12.5px">${esc(u.email)}</span>` +
+    (u.emailVerified ? '' : ' <span class="pill" title="لم يؤكَّد بعد">غير مؤكَّد</span>');
+}
+// After an invitation: say where it went, or hand over the link if the email could not be sent.
+async function inviteResult(user, invite){
+  if(invite.sent){ toast(`أُرسلت دعوة التفعيل إلى ${user.email}`); return; }
+  const text = `رابط تفعيل حسابك في أمان (${user.username}):\n${invite.url}`;
+  try{ await navigator.clipboard.writeText(text); toast('تعذّر إرسال البريد، فنُسخ رابط التفعيل. أرسله بنفسك (صالح 7 أيام).'); }
+  catch{ prompt('تعذّر إرسال البريد. انسخ رابط التفعيل وأرسله:', invite.url); }
+}
+$('cleanupBtn').addEventListener('click', async ()=>{
+  if(!confirm('حذف صور الشركات المحذوفة نهائيًا من التخزين؟')) return;
+  const d = await call('cleanupPhotos');
+  if(d.ok){ toast(`حُذف ${d.deleted} ملف`); load(); } else toast(d.message || 'تعذّر الحذف');
 });
 
 // ---------- provider admins ----------
@@ -474,8 +533,9 @@ function openSuper(a){
   $('s_username').value = a?.username || '';
   $('s_username').readOnly = !isNew;
   $('s_display').value = a?.displayName || '';
+  $('s_email').value = a?.email || '';
   $('s_password').value = '';
-  $('s_passLbl').textContent = isNew ? 'كلمة المرور (10 أحرف على الأقل)' : 'كلمة مرور جديدة (اتركها فارغة للإبقاء)';
+  $('s_passLbl').textContent = isNew ? 'كلمة المرور (اتركها فارغة لإرسال دعوة)' : 'كلمة مرور جديدة (اتركها فارغة للإبقاء)';
   $('s_active').checked = a ? a.active : true;
   $('supErr').textContent = '';
   openModal('supModal');
@@ -484,26 +544,33 @@ $('newSuperBtn').addEventListener('click', ()=> openSuper(null));
 $('supForm').addEventListener('submit', async (e)=>{
   e.preventDefault();
   const d = await call('saveSuperAdmin', {admin:{
-    username: $('s_username').value, displayName: $('s_display').value,
+    username: $('s_username').value, displayName: $('s_display').value, email: $('s_email').value,
     password: $('s_password').value || undefined, active: $('s_active').checked
   }});
   if(!d.ok){ $('supErr').textContent = d.message || 'تعذّر الحفظ'; return; }
-  closeModals(); toast('تم الحفظ');
+  closeModals();
+  if(d.invite) inviteResult(d.admin, d.invite);
+  else toast(d.verifySent ? 'تم الحفظ وأُرسل رابط تأكيد إلى البريد' : 'تم الحفظ');
   if(data.me?.emergency && !(data.superAdmins || []).length) toast('تم إنشاء حسابك. اخرج وادخل به من الآن');
   load();
 });
+$('myPassBtn').textContent = 'حسابي وكلمة المرور';
 $('myPassBtn').addEventListener('click', ()=>{
   $('my_display').value = data.me?.displayName || '';
+  $('my_email').value = data.me?.email || '';
+  $('my_emailState').textContent = !data.me?.email ? 'مطلوب لاستعادة كلمة المرور بنفسك' : data.me.emailVerified ? 'مؤكَّد ✓' : 'غير مؤكَّد';
   $('my_cur').value = ''; $('my_new').value = ''; $('myErr').textContent = '';
   openModal('myModal');
 });
 $('myForm').addEventListener('submit', async (e)=>{
   e.preventDefault();
-  const body = {displayName: $('my_display').value};
+  const body = {displayName: $('my_display').value, email: $('my_email').value};
   if($('my_new').value){ body.newPassword = $('my_new').value; body.currentPassword = $('my_cur').value; }
   const d = await call('updateMe', body);
   if(!d.ok){ $('myErr').textContent = d.message || 'تعذّر الحفظ'; return; }
-  closeModals(); toast(body.newPassword ? 'تم تغيير كلمة المرور' : 'تم الحفظ'); load();
+  closeModals();
+  toast(d.verifySent ? 'تم الحفظ. أرسلنا رابط تأكيد إلى بريدك' : body.newPassword ? 'تم تغيير كلمة المرور' : 'تم الحفظ');
+  load();
 });
 
 // ---------- row actions ----------
@@ -511,6 +578,12 @@ document.addEventListener('click', async (e)=>{
   const b = e.target.closest('button'); if(!b) return;
   const ds = b.dataset;
   if(ds.editSuper) openSuper((data.superAdmins || []).find(a=> a.username === ds.editSuper));
+  if(ds.resend){
+    const d = await call('resendInvite', {username: ds.resend});
+    const all = [...(data.superAdmins || []), ...data.companies.flatMap(s=> [...s.admins, ...s.users])];
+    if(d.ok) inviteResult(all.find(u=> u.username === ds.resend) || {username: ds.resend}, d.invite);
+    else toast(d.message || 'تعذّر الإرسال');
+  }
   if(ds.delSuper){
     if(confirm(`حذف حساب المزوّد ${ds.delSuper}؟`)){
       const d = await call('deleteSuperAdmin', {username: ds.delSuper});

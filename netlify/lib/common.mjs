@@ -78,6 +78,7 @@ export const monthStr = (d = new Date()) => d.toISOString().slice(0, 7);
 export const newId = () => crypto.randomUUID().replace(/-/g, '').slice(0, 10);
 export const isAdminRole = (u) => u?.role === 'admin';
 export const isSuperRole = (u) => u?.role === 'super';
+export const NOT_ACTIVATED = 'لم يُفعَّل هذا الحساب بعد. افتح رابط الدعوة الذي وصلك بالبريد لتضع كلمة مرورك';
 
 // ---------- license validation ----------
 // Returns { user, license } or an error Response.
@@ -94,6 +95,7 @@ export async function loadActive(username, deviceId, { registerDevice = false } 
     return { error: err(403, 'license_expired', 'انتهت صلاحية الرخصة. تواصل مع المزوّد للتجديد') };
   }
   const devices = user.devices || [];
+  let newDevice = false;
   if (deviceId && !devices.includes(deviceId)) {
     const max = Number(license.maxDevicesPerUser || 1);
     if (!registerDevice) return { error: err(403, 'device_unknown', 'هذا الجهاز غير مسجّل لهذا الحساب') };
@@ -102,13 +104,14 @@ export async function loadActive(username, deviceId, { registerDevice = false } 
       return { error: err(403, 'device_limit', `تجاوزت عدد الأجهزة المسموح (${max}). اطلب من مدير حساب شركتك تحرير جهاز سابق`) };
     }
     user.devices = [...devices, deviceId];
+    newDevice = true;
     user.deviceInfo = { ...(user.deviceInfo || {}), [deviceId]: { addedAt: new Date().toISOString() } };
   }
   const project = user.projectId ? await db.getProject(license.id, user.projectId) : null;
   if (project && project.active === false) {
     return { error: err(403, 'project_disabled', 'المشروع المرتبط بحسابك موقوف. تواصل مع مدير حساب شركتك') };
   }
-  return { user, license, project, settings: normSettings(project ? project.settings : user.settings) };
+  return { user, license, project, newDevice, settings: normSettings(project ? project.settings : user.settings) };
 }
 
 // ---------- license term (months) ----------

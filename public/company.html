@@ -20,6 +20,7 @@
     <div class="form-err" id="loginErr"></div>
     <button class="btn btn-primary" style="width:100%" type="submit" id="loginBtn">دخول</button>
   </form>
+  <p style="text-align:center; margin-top:14px; font-size:13px"><a href="/account" style="color:var(--tag)">نسيت كلمة المرور؟</a></p>
 </div>
 
 <div class="wrap" id="appView" style="display:none">
@@ -129,7 +130,7 @@
       </p>
       <div class="table-wrap">
         <table>
-          <thead><tr><th>اسم المستخدم</th><th>الاسم</th><th>المشروع</th><th>الحالة</th><th>الأجهزة</th><th>آخر دخول</th><th></th></tr></thead>
+          <thead><tr><th>اسم المستخدم</th><th>الاسم</th><th>البريد</th><th>المشروع</th><th>الحالة</th><th>الأجهزة</th><th>آخر دخول</th><th></th></tr></thead>
           <tbody id="userBody"></tbody>
         </table>
       </div>
@@ -144,6 +145,7 @@
         <div class="grid" style="grid-template-columns:1fr">
           <div><label>اسم المستخدم</label><input id="m_user" dir="ltr" readonly style="background:var(--muted)"></div>
           <div><label>الاسم الظاهر</label><input id="m_display"></div>
+          <div><label>البريد الإلكتروني</label><input id="m_email" type="email" dir="ltr" required><div class="sub" id="m_emailState" style="font-size:12px;margin-top:4px"></div></div>
           <div class="section-title">تغيير كلمة المرور (اختياري)</div>
           <div><label>كلمة المرور الحالية</label><input id="m_cur" type="password" dir="ltr" autocomplete="current-password"></div>
           <div><label>كلمة المرور الجديدة (8 أحرف على الأقل)</label><input id="m_new" type="password" dir="ltr" autocomplete="new-password"></div>
@@ -215,11 +217,15 @@
       <div><label>اسم المستخدم</label><input id="u_username" dir="ltr" autocapitalize="none" required></div>
       <div><label>الاسم الظاهر</label><input id="u_display"></div>
       <div style="grid-column:1/-1"><label>المشروع</label><select id="u_project" required></select></div>
+      <div style="grid-column:1/-1"><label>البريد الإلكتروني (اختياري للمستخدم الميداني)</label><input id="u_email" type="email" dir="ltr" autocomplete="off" placeholder="name@company.com"><div class="sub" id="u_emailState" style="font-size:12px;margin-top:4px"></div></div>
       <div><label id="u_passLbl">كلمة المرور</label><input id="u_password" dir="ltr" autocomplete="new-password"></div>
       <div style="align-self:end"><button type="button" class="btn btn-ghost btn-sm" id="genPassBtn">توليد كلمة مرور</button></div>
       <div class="check"><input type="checkbox" id="u_active" checked><label for="u_active">الحساب فعّال</label></div>
     </div>
-    <p class="hint">اسم المستخدم بالإنجليزية الصغيرة (3-40 حرفًا). عند الحفظ تُنسخ بيانات الدخول ورابط التطبيق لإرسالها للمستخدم. نقل المستخدم لمشروع آخر يغيّر إعداداته وفئاته عند أول اتصال، وأصوله المسجّلة تبقى على هاتفه.</p>
+    <p class="hint">اسم المستخدم بالإنجليزية الصغيرة (3-40 حرفًا).
+      <b>مع بريد:</b> اترك كلمة المرور فارغة، فتصل المستخدم دعوة ليضع كلمة مروره بنفسه، ويستطيع لاحقًا استعادتها بنفسه.
+      <b>بدون بريد:</b> ضع كلمة مرور، وتُنسخ بيانات الدخول لترسلها له.
+      نقل المستخدم لمشروع آخر يغيّر إعداداته وفئاته عند أول اتصال، وأصوله المسجّلة تبقى على هاتفه.</p>
     <div class="form-err" id="userErr"></div>
     <div class="modal-foot">
       <button class="btn btn-primary" type="submit">حفظ</button>
@@ -391,20 +397,25 @@ function render(){
   $('newUserBtn').title = !data.projects.length ? 'أنشئ مشروعًا أولًا' : full ? 'وصلت الرخصة للحد الأعلى من المستخدمين' : '';
   $('userBody').innerHTML = data.users.length ? data.users.map(u=>`<tr>
     <td class="mono">${esc(u.username)}</td><td>${esc(u.displayName || '—')}</td>
+    <td>${emailCell(u)}</td>
     <td>${esc(projById[u.projectId]?.name || '—')}</td>
-    <td>${u.active ? '<span class="pill ok">فعّال</span>' : '<span class="pill bad">موقوف</span>'}</td>
+    <td>${u.pending ? '<span class="pill">بانتظار التفعيل</span>' : u.active ? '<span class="pill ok">فعّال</span>' : '<span class="pill bad">موقوف</span>'}</td>
     <td class="stat">${u.devices.length}/${c.maxDevicesPerUser}</td>
     <td class="mono">${fmt(u.lastLogin)}</td>
     <td><div class="actions">
+      ${u.pending && u.email ? `<button class="btn btn-ghost btn-sm" data-resend="${esc(u.username)}">إعادة إرسال الدعوة</button>` : ''}
       <button class="btn btn-ghost btn-sm" data-edit-user="${esc(u.username)}">تعديل</button>
       <button class="btn btn-ghost btn-sm" data-devices="${esc(u.username)}">الأجهزة</button>
       <button class="btn btn-danger btn-sm" data-del-user="${esc(u.username)}">حذف</button>
     </div></td></tr>`).join('')
-    : `<tr><td colspan="7" class="empty">${data.projects.length ? 'لا يوجد مستخدمون بعد.' : 'أنشئ مشروعًا أولًا من تبويب «المشاريع»، ثم أضف المستخدمين.'}</td></tr>`;
+    : `<tr><td colspan="8" class="empty">${data.projects.length ? 'لا يوجد مستخدمون بعد.' : 'أنشئ مشروعًا أولًا من تبويب «المشاريع»، ثم أضف المستخدمين.'}</td></tr>`;
 
   renderInventoryShell();
   $('m_user').value = data.me.username;
   if(document.activeElement !== $('m_display')) $('m_display').value = data.me.displayName || '';
+  if(document.activeElement !== $('m_email')) $('m_email').value = data.me.email || '';
+  $('m_emailState').textContent = !data.me.email ? 'أضف بريدك لتستطيع استعادة كلمة المرور بنفسك'
+    : data.me.emailVerified ? 'مؤكَّد ✓' : 'غير مؤكَّد: افتح رابط التأكيد الذي وصلك';
 }
 
 // ---------- modals ----------
@@ -569,8 +580,11 @@ function openUser(u){
   $('u_display').value = u?.displayName || '';
   $('u_project').innerHTML = data.projects.map(p=>`<option value="${esc(p.id)}">${esc(p.name)}${p.active ? '' : ' (موقوف)'}</option>`).join('');
   if(u?.projectId) $('u_project').value = u.projectId;
-  $('u_password').value = isNew ? genPassword() : '';
-  $('u_passLbl').textContent = isNew ? 'كلمة المرور' : 'كلمة مرور جديدة (اتركها فارغة للإبقاء)';
+  $('u_email').value = u?.email || '';
+  $('u_emailState').textContent = !u?.email ? '' : u.pending ? 'بانتظار التفعيل من رابط الدعوة'
+    : u.emailVerified ? 'مؤكَّد ✓' : 'غير مؤكَّد';
+  $('u_password').value = '';
+  $('u_passLbl').textContent = isNew ? 'كلمة المرور (اتركها فارغة لإرسال دعوة بالبريد)' : 'كلمة مرور جديدة (اتركها فارغة للإبقاء)';
   $('u_active').checked = u ? u.active : true;
   $('userErr').textContent = '';
   openModal('userModal');
@@ -581,16 +595,32 @@ $('userForm').addEventListener('submit', async (e)=>{
   const password = $('u_password').value;
   const d = await call('saveUser', {user:{
     username: $('u_username').value, displayName: $('u_display').value, projectId: $('u_project').value,
-    password: password || undefined, active: $('u_active').checked
+    email: $('u_email').value, password: password || undefined, active: $('u_active').checked
   }});
   if(!d.ok){ $('userErr').textContent = d.message || 'تعذّر الحفظ'; return; }
   closeModals(); load();
+  if(d.invite){ inviteResult(d.user, d.invite); return; }
+  if(d.verifySent) toast('تم الحفظ وأُرسل رابط تأكيد إلى البريد الجديد');
   if(password){
     const text = `تطبيق الجرد: ${location.origin}\nاسم المستخدم: ${d.user.username}\nكلمة المرور: ${password}`;
     try{ await navigator.clipboard.writeText(text); toast('تم الحفظ ونسخ بيانات الدخول لإرسالها للمستخدم'); }
     catch{ prompt('بيانات الدخول (انسخها وأرسلها للمستخدم):', text.replace(/\n/g,' | ')); }
   } else toast('تم الحفظ');
 });
+
+function emailCell(u){
+  if(!u.email) return '<span class="sub">—</span>';
+  return `<span dir="ltr" style="font-size:12.5px">${esc(u.email)}</span>` +
+    (u.emailVerified ? '' : ' <span class="pill" title="لم يؤكَّد بعد">غير مؤكَّد</span>');
+}
+// After an invitation: say where it went, or hand over the link if the email could not be sent.
+async function inviteResult(user, invite){
+  if(invite.sent){ toast(`أُرسلت دعوة التفعيل إلى ${user.email}`); return; }
+  const text = `رابط تفعيل حسابك في أمان (${user.username}):\n${invite.url}`;
+  try{ await navigator.clipboard.writeText(text); alertBox('تعذّر إرسال البريد، فنُسخ رابط التفعيل. أرسله للمستخدم بنفسك (صالح 7 أيام).'); }
+  catch{ prompt('تعذّر إرسال البريد. انسخ رابط التفعيل وأرسله للمستخدم:', invite.url); }
+}
+function alertBox(m){ toast(m); }
 
 let devUser = null;
 function openDevices(username){
@@ -619,6 +649,10 @@ document.addEventListener('click', async (e)=>{
     }
   }
   if(ds.editUser) openUser(data.users.find(u=> u.username === ds.editUser));
+  if(ds.resend){
+    const d = await call('resendInvite', {username: ds.resend});
+    if(d.ok) inviteResult(data.users.find(u=> u.username === ds.resend), d.invite); else toast(d.message || 'تعذّر الإرسال');
+  }
   if(ds.devices) openDevices(ds.devices);
   if(ds.release){
     if(!confirm('تحرير هذا الجهاز؟ يتوقف عند أول اتصال، ويستطيع المستخدم الدخول من هاتف جديد.')) return;
@@ -854,12 +888,12 @@ $('photoParts').addEventListener('click', async (e)=>{
 $('meForm').addEventListener('submit', async (e)=>{
   e.preventDefault();
   $('meErr').textContent = '';
-  const body = {displayName: $('m_display').value};
+  const body = {displayName: $('m_display').value, email: $('m_email').value};
   if($('m_new').value){ body.newPassword = $('m_new').value; body.currentPassword = $('m_cur').value; }
   const d = await call('updateMe', body);
   if(!d.ok){ $('meErr').textContent = d.message || 'تعذّر الحفظ'; return; }
   $('m_cur').value = ''; $('m_new').value = '';
-  toast(body.newPassword ? 'تم تغيير كلمة المرور' : 'تم الحفظ');
+  toast(d.verifySent ? 'تم الحفظ. أرسلنا رابط تأكيد إلى بريدك' : body.newPassword ? 'تم تغيير كلمة المرور' : 'تم الحفظ');
   load();
 });
 

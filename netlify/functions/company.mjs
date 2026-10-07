@@ -2,15 +2,17 @@
 // within the limits of the license the super admin set for the company.
 import {
   err, json, readBody, bearer, db, verifyPassword, hashPassword, signToken,
-  verifyToken, checkLock, recordFail, clearFails, isAdminRole, normUser, handler
+  verifyToken, checkLock, recordFail, clearFails, isAdminRole, normUser, handler, NOT_ACTIVATED
 } from '../lib/common.mjs';
 import {
   companySnapshot, saveAccount, removeDevice, deleteAccount, saveProject, setCategories, getProject,
-  deleteProject, loadCompany, publicUser, ownedUser
+  deleteProject, loadCompany, publicUser, ownedUser, applyCredentials, saveWithMail, sendInvite
 } from '../lib/accounts.mjs';
+import { mailEnabled } from '../lib/mail.mjs';
 import { syncEnabled, rpc, signDownloads, photoPath, thumbPath, HASH_RE } from '../lib/supa.mjs';
 
 const SESSION_HOURS = 12;
+const ctxName = (ctx) => ctx.user.displayName || ctx.company.customer;
 const ok = (body = {}) => json(200, { ok: true, ...body });
 
 async function login({ username, password }) {
@@ -18,6 +20,7 @@ async function login({ username, password }) {
   const lockedMin = await checkLock(username);
   if (lockedMin) return err(429, 'locked', `محاولات كثيرة خاطئة. حاول بعد ${lockedMin} دقيقة`);
   const user = await db.getAccount(username);
+  if (user?.needsPassword) return err(403, 'not_activated', NOT_ACTIVATED);
   if (!user || !verifyPassword(password, user.salt, user.hash)) {
     await recordFail(username);
     await new Promise((r) => setTimeout(r, 400));
@@ -46,7 +49,7 @@ async function context(user) {
 
 const actions = {
   async overview({ company, user }) {
-    return ok({ ...(await companySnapshot(company)), me: publicUser(user) });
+    return ok({ ...(await companySnapshot(company)), me: publicUser(user), mail: mailEnabled() });
   },
   async saveProject({ company }, { project }) {
     const r = await saveProject(company, project);
@@ -63,9 +66,15 @@ const actions = {
   async deleteProject({ company }, { projectId }) {
     return (await deleteProject(company, projectId)) || ok();
   },
-  async saveUser({ company }, { user }) {
-    const r = await saveAccount(company, user, 'user');
-    return r.error || ok({ user: publicUser(r.user) });
+  async saveUser(ctx, { user }) {
+    const r = await saveAccount(ctx.company, user, 'user', ctxName(ctx));
+    return r.error || ok({ user: publicUser(r.user), invite: r.invite, verifySent: r.verifySent });
+  },
+  async resendInvite({ company, user: me }, { username }) {
+    const u = await ownedUser(company, username);
+    if (!u || isAdminRole(u)) return err(404, 'not_found', 'المستخدم غير موجود');
+    if (!u.needsPassword || !u.email) return err(400, 'not_pending', 'هذا الحساب مفعّل، أو ليس له بريد');
+    return ok({ invite: await sendInvite(u, me.displayName || company.customer) });
   },
   async removeDevice({ company }, { username, deviceId }) {
     const u = await ownedUser(company, username);
@@ -110,14 +119,16 @@ const actions = {
     } catch { return err(502, 'sync_failed', 'تعذّر الاتصال بخادم التخزين'); }
   },
 
-  async updateMe({ user }, { displayName, currentPassword, newPassword }) {
-    if (typeof displayName === 'string') user.displayName = displayName.trim().slice(0, 80);
-    if (newPassword) {
-      if (!verifyPassword(currentPassword || '', user.salt, user.hash)) return err(400, 'bad_password', 'كلمة المرور الحالية غير صحيحة');
-      if (String(newPassword).length < 8) return err(400, 'weak_password', 'كلمة المرور الجديدة 8 أحرف على الأقل');
-      Object.assign(user, hashPassword(newPassword));
+  async updateMe({ user }, { displayName, email, currentPassword, newPassword }) {
+    const rec = { ...user };
+    if (typeof displayName === 'string') rec.displayName = displayName.trim().slice(0, 80);
+    if (newPassword && !verifyPassword(currentPassword || '', user.salt, user.hash)) {
+      return err(400, 'bad_password', 'كلمة المرور الحالية غير صحيحة');
     }
-    return ok({ me: publicUser(await db.saveAccount(user)) });
+    const flags = applyCredentials(rec, user, { email: email ?? user.email, password: newPassword }, { requireEmail: true, minLength: 8 });
+    if (flags.error) return flags.error;
+    const r = await saveWithMail(rec, flags, {});
+    return r.error || ok({ me: publicUser(r.user), verifySent: r.verifySent });
   }
 };
 

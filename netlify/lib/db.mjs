@@ -6,7 +6,8 @@ import { rpc } from './supa.mjs';
 const ACC = {
   username: 'username', role: 'role', licenseId: 'company_id', projectId: 'project_id', displayName: 'display_name',
   active: 'active', salt: 'salt', hash: 'hash', devices: 'devices', deviceInfo: 'device_info', settings: 'settings',
-  lastLogin: 'last_login', createdAt: 'created_at'
+  lastLogin: 'last_login', createdAt: 'created_at', email: 'email', emailVerifiedAt: 'email_verified_at',
+  needsPassword: 'needs_password'
 };
 const CO = {
   id: 'id', customer: 'customer', startsAt: 'starts_at', months: 'months', expiresAt: 'expires_at', maxUsers: 'max_users',
@@ -32,18 +33,26 @@ function toRow(map, rec) {
 }
 const fromAcc = (row) => {
   const a = fromRow(ACC, row);
-  if (a) { a.devices = a.devices || []; a.deviceInfo = a.deviceInfo || {}; }
+  if (a) { a.devices = a.devices || []; a.deviceInfo = a.deviceInfo || {}; a.needsPassword = !!a.needsPassword; }
   return a;
 };
+// The settings column is only for legacy rows; null clears it.
+function accRow(rec) {
+  const r = toRow(ACC, { ...rec, role: rec.role || 'user' });
+  if (r.email !== undefined) r.email = rec.email ? String(rec.email).trim().toLowerCase() : null;
+  return r;
+}
 
 // The database refuses a field user beyond the license limit (see enforce_user_limit).
 export const isUserLimitError = (e) => String(e?.detail || '').startsWith('user_limit');
+export const isDuplicateEmailError = (e) => /accounts_email_key|duplicate key/.test(String(e?.detail || ''));
 
 export const db = {
   getAccount: async (username) => fromAcc(await rpc('acct_get', { p_username: String(username || '') })),
   listAccounts: async (companyId) => ((await rpc('acct_list', { p_company: companyId ?? null })) || []).map(fromAcc),
   listSuperAdmins: async () => ((await rpc('acct_list', { p_company: null })) || []).map(fromAcc),
-  saveAccount: async (rec) => fromAcc(await rpc('acct_save', { p: toRow(ACC, { ...rec, role: rec.role || 'user' }) })),
+  saveAccount: async (rec) => fromAcc(await rpc('acct_save', { p: accRow(rec) })),
+  getAccountByEmail: async (email) => fromAcc(await rpc('acct_by_email', { p_email: String(email || '') })),
   deleteAccount: (username) => rpc('acct_delete', { p_username: username }),
   registerDevice: (username, deviceId, max) => rpc('acct_register_device', { p_username: username, p_device: deviceId, p_max: max }),
   removeDevice: (username, deviceId) => rpc('acct_remove_device', { p_username: username, p_device: deviceId || null }),
@@ -64,7 +73,15 @@ export const db = {
 
   lockCheck: (key) => rpc('lock_check', { p_key: key }),
   lockFail: (key, max, minutes) => rpc('lock_fail', { p_key: key, p_max: max, p_minutes: minutes }),
-  lockClear: (key) => rpc('lock_clear', { p_key: key })
+  lockClear: (key) => rpc('lock_clear', { p_key: key }),
+
+  tokCreate: (hash, username, purpose, email, minutes) =>
+    rpc('tok_create', { p_hash: hash, p_username: username, p_purpose: purpose, p_email: email || null, p_minutes: minutes }),
+  tokPeek: (hash) => rpc('tok_peek', { p_hash: hash }),
+  tokConsume: (hash, purpose) => rpc('tok_consume', { p_hash: hash, p_purpose: purpose }),
+
+  storageUsage: () => rpc('storage_usage', {}),
+  photoPaths: (companyId, limit = 1000) => rpc('photo_paths', { p_company: companyId ?? null, p_limit: limit })
 };
 
 // ---------- one-time import of the old Netlify Blobs data ----------

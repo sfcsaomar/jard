@@ -62,3 +62,20 @@ export async function signDownloads(paths, expiresIn = 3600) {
   }
   return out;
 }
+
+// Deletes stored photos by path, in batches.
+export async function deletePhotos(paths) {
+  let n = 0;
+  for (let i = 0; i < paths.length; i += 500) {
+    const chunk = paths.slice(i, i + 500);
+    const r = await _fetch(`${base()}/storage/v1/object/${BUCKET}`, {
+      method: 'DELETE', headers: headers(), body: JSON.stringify({ prefixes: chunk })
+    });
+    if (!r.ok) {
+      console.error('Supabase delete photos', r.status, (await r.text()).slice(0, 300));
+      throw new Error(`delete photos ${r.status}`);
+    }
+    n += chunk.length;
+  }
+  return n;
+}

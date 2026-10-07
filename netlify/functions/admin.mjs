@@ -4,12 +4,16 @@
 import crypto from 'node:crypto';
 import {
   err, json, readBody, bearer, db, signToken, verifyToken, verifyPassword, hashPassword,
-  addMonthsMinusDay, normTerm, monthStr, normUser, handler
+  addMonthsMinusDay, normTerm, monthStr, normUser, handler, NOT_ACTIVATED
 } from '../lib/common.mjs';
 import {
   companySnapshot, saveAccount, removeDevice, deleteAccount, saveProject, setCategories, getProject,
-  deleteProject, loadCompany, publicUser, companyUsers
+  deleteProject, loadCompany, publicUser, applyCredentials, saveWithMail, sendInvite, cleanupPhotos
 } from '../lib/accounts.mjs';
+import { mailEnabled } from '../lib/mail.mjs';
+
+// Photo storage included in the current Supabase plan (GB); the panel warns from 80%.
+const STORAGE_LIMIT_GB = Number(process.env.STORAGE_LIMIT_GB || 1);
 
 const SESSION_HOURS = 12;
 const USERNAME_RE = /^[a-z0-9._-]{3,40}$/;
@@ -36,11 +40,14 @@ const ok = (body = {}) => json(200, { ok: true, ...body });
 
 const publicSuper = (u) => ({
   username: u.username, displayName: u.displayName || '', active: u.active !== false,
+  email: u.email || '', emailVerified: !!u.emailVerifiedAt, pending: !!u.needsPassword,
   lastLogin: u.lastLogin || null, createdAt: u.createdAt || null
 });
+const inviterOf = (ctx) => (ctx.emergency ? 'مزوّد خدمة أمان' : (ctx.user.displayName || ctx.user.username));
 const meOf = (ctx) => (ctx.emergency
   ? { username: '', displayName: 'دخول الطوارئ', emergency: true }
   : { ...publicSuper(ctx.user), emergency: false });
+
 
 async function withCompany(id, fn) {
   const c = await loadCompany(id);
@@ -58,6 +65,7 @@ async function login(req, context, { username, password }) {
     if (emergencyMatches(password)) payload = { u: '', role: 'super', emg: 1 };
   } else {
     const u = await db.getAccount(name);
+    if (u?.role === 'super' && u.needsPassword) return err(403, 'not_activated', NOT_ACTIVATED);
     if (u && u.role === 'super' && u.active !== false && verifyPassword(password || '', u.salt, u.hash)) {
       payload = { u: u.username, role: 'super' };
       await db.seen(u.username, null, true);
@@ -90,7 +98,13 @@ const actions = {
     const list = [];
     for (const c of companies) list.push(await companySnapshot(c, { withNotes: true }));
     const supers = (await db.listSuperAdmins()).map(publicSuper);
-    return ok({ month: monthStr(), companies: list, me: meOf(ctx), superAdmins: supers });
+    let storage = null;
+    try {
+      const u = await db.storageUsage();
+      const limit = STORAGE_LIMIT_GB * 1024 ** 3;
+      storage = { ...u, limitBytes: limit, pct: Math.round((Number(u.bytes) / limit) * 1000) / 10 };
+    } catch { /* storage stats are informational */ }
+    return ok({ month: monthStr(), companies: list, me: meOf(ctx), superAdmins: supers, storage, mail: mailEnabled() });
   },
 
   // Create or edit a company and its license. The license runs for a number of months from its start date.
@@ -138,23 +152,25 @@ const actions = {
       if ((await db.deleteCompany(c.id)) === 'has_users') {
         return err(400, 'has_users', 'احذف حسابات هذه الشركة (الأدمن والمستخدمين) أولًا');
       }
-      return ok();
+      let photos = 0;
+      try { photos = await cleanupPhotos(c.id); } catch { /* left for the cleanup button */ }
+      return ok({ photosDeleted: photos });
     });
   },
 
   // Company admin accounts (the customer's own administrator).
   async saveCompanyAdmin(ctx, { admin }) {
     return withCompany(admin?.companyId, async (c) => {
-      const r = await saveAccount(c, admin, 'admin');
-      return r.error || ok({ user: publicUser(r.user) });
+      const r = await saveAccount(c, admin, 'admin', inviterOf(ctx));
+      return r.error || ok({ user: publicUser(r.user), invite: r.invite, verifySent: r.verifySent });
     });
   },
 
   // The provider can also manage everything inside a company.
   async saveUser(ctx, { user }) {
     return withCompany(user?.companyId, async (c) => {
-      const r = await saveAccount(c, user, 'user');
-      return r.error || ok({ user: publicUser(r.user) });
+      const r = await saveAccount(c, user, 'user', inviterOf(ctx));
+      return r.error || ok({ user: publicUser(r.user), invite: r.invite, verifySent: r.verifySent });
     });
   },
   async resetDevices(ctx, { companyId, username, deviceId }) {
@@ -179,14 +195,26 @@ const actions = {
     return withCompany(companyId, async (c) => (await deleteProject(c, projectId)) || ok());
   },
 
+  // Sends the invitation again to any account that has not set its password yet.
+  async resendInvite(ctx, { username }) {
+    const u = await db.getAccount(username);
+    if (!u) return err(404, 'not_found', 'الحساب غير موجود');
+    if (!u.needsPassword || !u.email) return err(400, 'not_pending', 'هذا الحساب مفعّل، أو ليس له بريد');
+    return ok({ invite: await sendInvite(u, inviterOf(ctx)) });
+  },
+
+  // Removes photos left behind by deleted companies.
+  async cleanupPhotos() {
+    try { return ok({ deleted: await cleanupPhotos(null) }); }
+    catch { return err(502, 'storage_failed', 'تعذّر الاتصال بخادم التخزين، حاول لاحقًا'); }
+  },
+
   // ---------- provider admins ----------
   async saveSuperAdmin(ctx, { admin }) {
     const username = normUser(admin?.username);
     if (!USERNAME_RE.test(username)) return err(400, 'bad_username', 'اسم المستخدم: 3-40 حرفًا إنجليزيًا صغيرًا أو أرقامًا أو . _ -');
     const existing = await db.getAccount(username);
     if (existing && existing.role !== 'super') return err(409, 'username_taken', 'اسم المستخدم مستخدم لحساب آخر. اختر اسمًا مختلفًا');
-    if (!existing && !admin.password) return err(400, 'no_password', 'كلمة المرور مطلوبة للحساب الجديد');
-    if (admin.password && String(admin.password).length < 10) return err(400, 'weak_password', 'كلمة مرور المزوّد 10 أحرف على الأقل');
     const active = admin.active !== false;
     if (existing && !active && !ctx.emergency && ctx.user.username === username) {
       return err(400, 'self', 'لا يمكنك إيقاف حسابك وأنت داخل به');
@@ -195,14 +223,16 @@ const actions = {
       const others = (await db.listSuperAdmins()).filter((a) => a.username !== username && a.active !== false);
       if (!others.length) return err(400, 'last_admin', 'يجب أن يبقى حساب مزوّد فعّال واحد على الأقل');
     }
-    const rec = existing || { username, role: 'super', devices: [], deviceInfo: {}, createdAt: new Date().toISOString() };
+    const rec = existing ? { ...existing } : { username, role: 'super', devices: [], deviceInfo: {}, createdAt: new Date().toISOString() };
+    const flags = applyCredentials(rec, existing, admin, { requireEmail: true, minLength: 10 });
+    if (flags.error) return flags.error;
     rec.role = 'super';
     rec.licenseId = null;
     rec.projectId = null;
     rec.displayName = String(admin.displayName || '').trim().slice(0, 80);
     rec.active = active;
-    if (admin.password) Object.assign(rec, hashPassword(admin.password));
-    return ok({ admin: publicSuper(await db.saveAccount(rec)) });
+    const r = await saveWithMail(rec, flags, { inviterName: inviterOf(ctx) });
+    return r.error || ok({ admin: publicSuper(r.user), invite: r.invite, verifySent: r.verifySent });
   },
 
   async deleteSuperAdmin(ctx, { username }) {
@@ -215,16 +245,17 @@ const actions = {
     return ok();
   },
 
-  async updateMe(ctx, { displayName, currentPassword, newPassword }) {
+  async updateMe(ctx, { displayName, email, currentPassword, newPassword }) {
     if (ctx.emergency) return err(400, 'emergency', 'أنت داخل بكلمة الطوارئ. أنشئ حسابًا لنفسك من قائمة حسابات المزوّد');
-    const user = ctx.user;
+    const user = { ...ctx.user };
     if (typeof displayName === 'string') user.displayName = displayName.trim().slice(0, 80);
-    if (newPassword) {
-      if (!verifyPassword(currentPassword || '', user.salt, user.hash)) return err(400, 'bad_password', 'كلمة المرور الحالية غير صحيحة');
-      if (String(newPassword).length < 10) return err(400, 'weak_password', 'كلمة مرور المزوّد 10 أحرف على الأقل');
-      Object.assign(user, hashPassword(newPassword));
+    if (newPassword && !verifyPassword(currentPassword || '', user.salt, user.hash)) {
+      return err(400, 'bad_password', 'كلمة المرور الحالية غير صحيحة');
     }
-    return ok({ me: { ...publicSuper(await db.saveAccount(user)), emergency: false } });
+    const flags = applyCredentials(user, ctx.user, { email: email ?? ctx.user.email, password: newPassword }, { requireEmail: true, minLength: 10 });
+    if (flags.error) return flags.error;
+    const r = await saveWithMail(user, flags, {});
+    return r.error || ok({ me: { ...publicSuper(r.user), emergency: false }, verifySent: r.verifySent });
   }
 };
 

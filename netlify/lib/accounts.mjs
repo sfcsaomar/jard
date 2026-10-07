@@ -2,8 +2,88 @@
 import {
   err, db, hashPassword, normUser, monthStr, normSettings, normCategories, isAdminRole, newId, ensureProjects, normTerm
 } from './common.mjs';
-import { isUserLimitError } from './db.mjs';
-import { syncEnabled, rpc } from './supa.mjs';
+import crypto from 'node:crypto';
+import { isUserLimitError, isDuplicateEmailError } from './db.mjs';
+import { syncEnabled, rpc, deletePhotos } from './supa.mjs';
+import { sendMail, templates, newToken, hashToken, linkFor, LINK_MINUTES, EMAIL_RE, normEmail } from './mail.mjs';
+
+// ---------- email links and notices ----------
+// Invitation: the account has no usable password until its owner sets one from the emailed link.
+export async function sendInvite(user, inviterName) {
+  const token = newToken();
+  await db.tokCreate(hashToken(token), user.username, 'invite', user.email, LINK_MINUTES.invite);
+  const url = linkFor(token);
+  const sent = await sendMail(user.email, templates.invite({ name: user.displayName, username: user.username, url, inviter: inviterName }));
+  return { url, sent };
+}
+export async function sendVerify(user) {
+  const token = newToken();
+  await db.tokCreate(hashToken(token), user.username, 'verify_email', user.email, LINK_MINUTES.verify_email);
+  return sendMail(user.email, templates.verify({ username: user.username, email: user.email, url: linkFor(token) }));
+}
+// Security notices only go to a confirmed address.
+export async function notify(user, kind, data = {}) {
+  if (!user?.email || !user.emailVerifiedAt) return false;
+  return sendMail(user.email, templates[kind]({ username: user.username, ...data }));
+}
+export const randomPassword = () => hashPassword(crypto.randomBytes(24).toString('base64url'));
+
+// Applies email + password/invitation rules to an account record before saving.
+// Returns { error } or { invite, emailChanged, passwordChanged }.
+export function applyCredentials(rec, existing, input, { requireEmail = false, minLength = 8 } = {}) {
+  const email = normEmail(input.email);
+  if (email && !EMAIL_RE.test(email)) return { error: err(400, 'bad_email', 'صيغة البريد الإلكتروني غير صحيحة') };
+  if (requireEmail && !email) return { error: err(400, 'email_required', 'البريد الإلكتروني مطلوب لهذا النوع من الحسابات') };
+  const password = input.password ? String(input.password) : '';
+  if (password && password.length < minLength) return { error: err(400, 'weak_password', `كلمة المرور ${minLength} أحرف على الأقل`) };
+  if (!existing && !password && !email) {
+    return { error: err(400, 'no_password', 'أدخل بريدًا لإرسال دعوة، أو ضع كلمة مرور للحساب') };
+  }
+  const emailChanged = (existing?.email || '') !== email;
+  rec.email = email || null;
+  if (emailChanged) rec.emailVerifiedAt = null;
+  let invite = false;
+  if (password) {
+    Object.assign(rec, hashPassword(password));
+    rec.needsPassword = false;
+  } else if (!existing) {
+    Object.assign(rec, randomPassword());
+    rec.needsPassword = true;
+    invite = true;
+  } else if (existing.needsPassword && emailChanged && email) {
+    invite = true; // pending account with a corrected address: send the invitation again
+  }
+  return { invite, emailChanged: emailChanged && !!email, passwordChanged: !!password && !!existing };
+}
+
+// Saves, then sends whatever the change calls for. Maps database refusals to messages.
+export async function saveWithMail(rec, flags, { inviterName, limitMessage } = {}) {
+  let user;
+  try {
+    user = await db.saveAccount(rec);
+  } catch (e) {
+    if (isUserLimitError(e)) return { error: err(400, 'user_limit', limitMessage || 'وصلت الرخصة للحد الأعلى من المستخدمين') };
+    if (isDuplicateEmailError(e)) return { error: err(409, 'email_taken', 'هذا البريد مستخدم لحساب آخر') };
+    throw e;
+  }
+  const out = { user };
+  if (flags.invite && user.email) out.invite = await sendInvite(user, inviterName);
+  else if (flags.emailChanged) out.verifySent = await sendVerify(user);
+  if (flags.passwordChanged) await notify(user, 'passwordChanged');
+  return out;
+}
+
+// Removes stored photos (one company's, or those of deleted companies when companyId is null).
+export async function cleanupPhotos(companyId) {
+  let total = 0;
+  for (let round = 0; round < 50; round++) {
+    const paths = (await db.photoPaths(companyId ?? null, 1000)) || [];
+    if (!paths.length) break;
+    total += await deletePhotos(paths);
+    if (paths.length < 1000) break;
+  }
+  return total;
+}
 
 // Asset counts per project from the synced inventory; empty when sync is off or unreachable.
 export async function assetCounts(companyId) {
@@ -28,6 +108,9 @@ export const publicUser = (u) => ({
   projectId: u.projectId || null,
   role: isAdminRole(u) ? 'admin' : 'user',
   active: u.active !== false,
+  email: u.email || '',
+  emailVerified: !!u.emailVerifiedAt,
+  pending: !!u.needsPassword,
   devices: publicDevice(u),
   lastLogin: u.lastLogin || null,
   createdAt: u.createdAt || null
@@ -95,7 +178,7 @@ export async function companySnapshot(company, { withNotes = false } = {}) {
 // ---------- users ----------
 // Creates or updates a field user (role "user") or a company admin (role "admin") in one company.
 // Usernames are global, so a name owned by another company is refused rather than taken over.
-export async function saveAccount(company, input, role) {
+export async function saveAccount(company, input, role, inviterName) {
   const username = normUser(input?.username);
   if (!USERNAME_RE.test(username)) {
     return { error: err(400, 'bad_username', 'اسم المستخدم: 3-40 حرفًا إنجليزيًا صغيرًا أو أرقامًا أو . _ -') };
@@ -107,10 +190,9 @@ export async function saveAccount(company, input, role) {
   if (existing && (isAdminRole(existing) ? 'admin' : 'user') !== role) {
     return { error: err(409, 'username_taken', 'اسم المستخدم مستخدم لحساب من نوع آخر في نفس الشركة') };
   }
-  if (!existing && !input.password) return { error: err(400, 'no_password', 'كلمة المرور مطلوبة للحساب الجديد') };
-  if (input.password && String(input.password).length < 8) return { error: err(400, 'weak_password', 'كلمة المرور 8 أحرف على الأقل') };
-
-  const rec = existing || { username, devices: [], createdAt: new Date().toISOString() };
+  const rec = existing ? { ...existing } : { username, devices: [], createdAt: new Date().toISOString() };
+  const flags = applyCredentials(rec, existing, input, { requireEmail: role === 'admin', minLength: 8 });
+  if (flags.error) return { error: flags.error };
   rec.licenseId = company.id;
   rec.role = role;
   rec.displayName = String(input.displayName || '').trim().slice(0, 80);
@@ -126,15 +208,10 @@ export async function saveAccount(company, input, role) {
     rec.projectId = project.id;
     rec.settings = null; // settings now come from the project
   }
-  if (input.password) Object.assign(rec, hashPassword(input.password));
-  try {
-    return { user: await db.saveAccount(rec) };
-  } catch (e) {
-    if (isUserLimitError(e)) {
-      return { error: err(400, 'user_limit', `وصلت الرخصة للحد الأعلى من المستخدمين (${Number(company.maxUsers || 1)})`) };
-    }
-    throw e;
-  }
+  return saveWithMail(rec, flags, {
+    inviterName: inviterName || company.customer,
+    limitMessage: `وصلت الرخصة للحد الأعلى من المستخدمين (${Number(company.maxUsers || 1)})`
+  });
 }
 
 export async function ownedUser(company, username) {
