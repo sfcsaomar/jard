@@ -1,6 +1,6 @@
 // Field-app sync: the phone asks for signed upload URLs for its photos, uploads them straight
 // to storage, then pushes the asset records. Every call re-checks the license and the device.
-import { err, json, readBody, bearer, verifyToken, loadActive } from '../lib/common.mjs';
+import { err, json, readBody, bearer, verifyToken, loadActive, handler } from '../lib/common.mjs';
 import { syncEnabled, rpc, signUpload, photoPath, thumbPath, HASH_RE } from '../lib/supa.mjs';
 
 const MAX_SIGN = 40;
@@ -32,7 +32,7 @@ function cleanAsset(a) {
   };
 }
 
-export default async (req) => {
+export default handler(async (req) => {
   if (req.method !== 'POST') return err(405, 'method', 'Method not allowed');
   const payload = verifyToken(bearer(req));
   if (!payload) return err(401, 'session_expired', 'انتهت الجلسة. سجّل الدخول مجددًا');
@@ -67,6 +67,6 @@ export default async (req) => {
     return err(502, 'sync_failed', 'تعذّر الاتصال بخادم التخزين، ستُعاد المحاولة تلقائيًا');
   }
   return err(400, 'bad_action', 'Unknown action');
-};
+});
 
 export const config = { path: '/api/sync' };

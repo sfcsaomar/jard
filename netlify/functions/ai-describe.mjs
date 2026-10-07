@@ -1,4 +1,4 @@
-import { err, json, readBody, bearer, verifyToken, loadActive, getJSON, setJSON, usageKey } from '../lib/common.mjs';
+import { err, json, readBody, bearer, verifyToken, loadActive, db, monthStr, handler } from '../lib/common.mjs';
 
 // Asset description: at most 5 words, in the language the admin set for this user.
 const MAX_WORDS = 5;
@@ -26,7 +26,7 @@ function parseLabel(text) {
 
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 
-export default async (req) => {
+export default handler(async (req) => {
   if (req.method !== 'POST') return err(405, 'method', 'Method not allowed');
   const payload = verifyToken(bearer(req));
   if (!payload) return err(401, 'session_expired', 'انتهت الجلسة. سجّل الدخول مجددًا');
@@ -44,8 +44,8 @@ export default async (req) => {
   if (image.length > 4_000_000) return err(413, 'too_large', 'الصورة كبيرة جدًا');
   const type = ALLOWED_TYPES.includes(mediaType) ? mediaType : 'image/jpeg';
 
-  const uKey = usageKey(license.id);
-  const usage = (await getJSON(uKey)) || { count: 0 };
+  const month = monthStr();
+  const usage = (await db.usageGet(license.id, month)) || { count: 0 };
   const cap = Number(license.aiMonthlyCap || 0);
   if (cap > 0 && usage.count >= cap) {
     return err(429, 'ai_cap', `استُنفد رصيد الذكاء الاصطناعي لهذا الشهر (${cap} طلب)`);
@@ -73,10 +73,7 @@ export default async (req) => {
   const data = await r.json();
   const text = (data.content || []).map((b) => b.text || '').join('').trim();
 
-  usage.count = (usage.count || 0) + 1;
-  usage.inputTokens = (usage.inputTokens || 0) + (data.usage?.input_tokens || 0);
-  usage.outputTokens = (usage.outputTokens || 0) + (data.usage?.output_tokens || 0);
-  await setJSON(uKey, usage);
+  usage.count = await db.usageAdd(license.id, month, data.usage?.input_tokens || 0, data.usage?.output_tokens || 0);
 
   const remaining = cap > 0 ? cap - usage.count : null;
   if (isLabel) return json(200, { ok: true, fields: parseLabel(text), remaining });
@@ -87,6 +84,6 @@ export default async (req) => {
     return json(200, { ok: true, code, remaining });
   }
   return json(200, { ok: true, text: clampWords(text, MAX_WORDS), lang, remaining });
-};
+});
 
 export const config = { path: '/api/ai-describe' };

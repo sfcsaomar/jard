@@ -1,18 +1,12 @@
-// Shared helpers for all functions: storage, password hashing, signed tokens, license checks.
+// Shared helpers for all functions: password hashing, signed tokens, license checks.
 import crypto from 'node:crypto';
-import { getStore } from '@netlify/blobs';
 import { syncEnabled } from './supa.mjs';
+import { db, ensureReady } from './db.mjs';
 
+export { db };
 export const TOKEN_DAYS = Number(process.env.OFFLINE_GRACE_DAYS || 7);
 const MAX_FAILED = 5;
 const LOCK_MINUTES = 15;
-
-let _store = null;
-export function store() {
-  if (!_store) _store = getStore({ name: 'licensing', consistency: 'strong' });
-  return _store;
-}
-export function _setStoreForTests(s) { _store = s; }
 
 // ---------- responses ----------
 export function json(status, body) {
@@ -22,6 +16,19 @@ export function json(status, body) {
   });
 }
 export const err = (status, code, message) => json(status, { ok: false, code, message });
+
+// Wraps a function handler: imports the old data on first run and turns database outages into a clear message.
+export function handler(fn) {
+  return async (req, context) => {
+    try {
+      await ensureReady();
+      return await fn(req, context);
+    } catch (e) {
+      console.error('Handler error', e?.status || '', e?.detail || e?.message || e);
+      return err(503, 'server_busy', 'الخادم غير متاح مؤقتًا، حاول بعد قليل');
+    }
+  };
+}
 
 // ---------- passwords ----------
 export function hashPassword(password) {
@@ -65,34 +72,22 @@ export function bearer(req) {
   return h.startsWith('Bearer ') ? h.slice(7) : '';
 }
 
-// ---------- keys ----------
+// ---------- ids ----------
 export const normUser = (u) => String(u || '').trim().toLowerCase();
-export const userKey = (u) => `users/${normUser(u)}`;
-export const licKey = (id) => `licenses/${id}`;
 export const monthStr = (d = new Date()) => d.toISOString().slice(0, 7);
-export const usageKey = (licId, m = monthStr()) => `usage/${licId}/${m}`;
-export const projectKey = (companyId, pid) => `projects/${companyId}/${pid}`;
 export const newId = () => crypto.randomUUID().replace(/-/g, '').slice(0, 10);
 export const isAdminRole = (u) => u?.role === 'admin';
-
-export async function listPrefix(prefix) {
-  const { blobs } = await store().list({ prefix });
-  const out = [];
-  for (const b of blobs) { const v = await getJSON(b.key); if (v) out.push(v); }
-  return out;
-}
-
-export async function getJSON(key) { return (await store().get(key, { type: 'json' })) || null; }
-export async function setJSON(key, val) { await store().setJSON(key, val); }
+export const isSuperRole = (u) => u?.role === 'super';
 
 // ---------- license validation ----------
 // Returns { user, license } or an error Response.
 export async function loadActive(username, deviceId, { registerDevice = false } = {}) {
-  const user = await getJSON(userKey(username));
+  const user = await db.getAccount(username);
   if (!user) return { error: err(401, 'bad_credentials', 'اسم المستخدم أو كلمة المرور غير صحيحة') };
   if (isAdminRole(user)) return { error: err(403, 'admin_account', 'هذا حساب إدارة الشركة. ادخل من لوحة الشركة: /company') };
+  if (isSuperRole(user)) return { error: err(403, 'admin_account', 'هذا حساب المزوّد. ادخل من لوحة التراخيص: /admin') };
   if (!user.active) return { error: err(403, 'user_disabled', 'هذا الحساب موقوف. تواصل مع المزوّد') };
-  const license = await getJSON(licKey(user.licenseId));
+  const license = await db.getCompany(user.licenseId);
   if (!license) return { error: err(403, 'no_license', 'لا توجد رخصة مرتبطة بهذا الحساب') };
   if (!license.active) return { error: err(403, 'license_disabled', 'الرخصة موقوفة. تواصل مع المزوّد') };
   if (license.expiresAt && new Date(license.expiresAt + 'T23:59:59Z').getTime() < Date.now()) {
@@ -102,15 +97,14 @@ export async function loadActive(username, deviceId, { registerDevice = false } 
   if (deviceId && !devices.includes(deviceId)) {
     const max = Number(license.maxDevicesPerUser || 1);
     if (!registerDevice) return { error: err(403, 'device_unknown', 'هذا الجهاز غير مسجّل لهذا الحساب') };
-    if (devices.length >= max) {
+    // Atomic in the database, so two phones signing in together cannot exceed the limit.
+    if ((await db.registerDevice(user.username, deviceId, max)) !== 'ok') {
       return { error: err(403, 'device_limit', `تجاوزت عدد الأجهزة المسموح (${max}). اطلب من مدير حساب شركتك تحرير جهاز سابق`) };
     }
-    devices.push(deviceId);
-    user.devices = devices;
+    user.devices = [...devices, deviceId];
     user.deviceInfo = { ...(user.deviceInfo || {}), [deviceId]: { addedAt: new Date().toISOString() } };
-    await setJSON(userKey(username), user);
   }
-  const project = user.projectId ? await getJSON(projectKey(license.id, user.projectId)) : null;
+  const project = user.projectId ? await db.getProject(license.id, user.projectId) : null;
   if (project && project.active === false) {
     return { error: err(403, 'project_disabled', 'المشروع المرتبط بحسابك موقوف. تواصل مع مدير حساب شركتك') };
   }
@@ -194,8 +188,8 @@ export function publicLicense(license, user, project) {
 // Older data had settings per user and no projects. The first time a company is opened,
 // create one default project (taking the first user's settings) and move every user into it.
 export async function ensureProjects(company) {
-  const projects = await listPrefix(`projects/${company.id}/`);
-  const users = (await listPrefix('users/')).filter((u) => u.licenseId === company.id && !isAdminRole(u));
+  const projects = await db.listProjects(company.id);
+  const users = (await db.listAccounts(company.id)).filter((u) => u.role === 'user');
   const orphans = users.filter((u) => !u.projectId || !projects.some((p) => p.id === u.projectId));
   if (!orphans.length) return projects;
   let target = projects[0];
@@ -204,10 +198,10 @@ export async function ensureProjects(company) {
       id: newId(), companyId: company.id, name: 'المشروع الافتراضي', active: true,
       settings: normSettings(orphans[0]?.settings), categories: [], createdAt: new Date().toISOString()
     };
-    await setJSON(projectKey(company.id, target.id), target);
+    target = await db.saveProject(target);
     projects.push(target);
   }
-  for (const u of orphans) { u.projectId = target.id; await setJSON(userKey(u.username), u); }
+  for (const u of orphans) { u.projectId = target.id; await db.saveAccount(u); }
   return projects;
 }
 
@@ -217,19 +211,10 @@ export function issueToken(user, deviceId) {
 }
 
 // ---------- brute-force lock ----------
-export async function checkLock(username) {
-  const rec = await getJSON(`locks/${normUser(username)}`);
-  if (rec && rec.until && rec.until > Date.now()) return Math.ceil((rec.until - Date.now()) / 60000);
-  return 0;
-}
-export async function recordFail(username) {
-  const key = `locks/${normUser(username)}`;
-  const rec = (await getJSON(key)) || { count: 0 };
-  rec.count = (rec.count || 0) + 1;
-  if (rec.count >= MAX_FAILED) { rec.until = Date.now() + LOCK_MINUTES * 60000; rec.count = 0; }
-  await setJSON(key, rec);
-}
-export async function clearFails(username) { await store().delete(`locks/${normUser(username)}`); }
+const lockKey = (username) => `u:${normUser(username)}`;
+export async function checkLock(username) { return Number(await db.lockCheck(lockKey(username))) || 0; }
+export async function recordFail(username) { await db.lockFail(lockKey(username), MAX_FAILED, LOCK_MINUTES); }
+export async function clearFails(username) { await db.lockClear(lockKey(username)); }
 
 export async function readBody(req) {
   try { return await req.json(); } catch { return {}; }

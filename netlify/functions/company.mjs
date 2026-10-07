@@ -1,8 +1,8 @@
 // Company-admin API: the customer's own administrator manages projects, field users and devices
 // within the limits of the license the super admin set for the company.
 import {
-  err, json, readBody, bearer, getJSON, setJSON, userKey, verifyPassword, hashPassword, signToken,
-  verifyToken, checkLock, recordFail, clearFails, isAdminRole, normUser
+  err, json, readBody, bearer, db, verifyPassword, hashPassword, signToken,
+  verifyToken, checkLock, recordFail, clearFails, isAdminRole, normUser, handler
 } from '../lib/common.mjs';
 import {
   companySnapshot, saveAccount, removeDevice, deleteAccount, saveProject, setCategories, getProject,
@@ -17,7 +17,7 @@ async function login({ username, password }) {
   if (!username || !password) return err(400, 'missing', 'أدخل اسم المستخدم وكلمة المرور');
   const lockedMin = await checkLock(username);
   if (lockedMin) return err(429, 'locked', `محاولات كثيرة خاطئة. حاول بعد ${lockedMin} دقيقة`);
-  const user = await getJSON(userKey(username));
+  const user = await db.getAccount(username);
   if (!user || !verifyPassword(password, user.salt, user.hash)) {
     await recordFail(username);
     await new Promise((r) => setTimeout(r, 400));
@@ -27,8 +27,8 @@ async function login({ username, password }) {
   await clearFails(username);
   const ctx = await context(user);
   if (ctx.error) return ctx.error;
+  await db.seen(user.username, null, true);
   user.lastLogin = new Date().toISOString();
-  await setJSON(userKey(user.username), user);
   const now = Date.now();
   const token = signToken({ u: user.username, lic: user.licenseId, role: 'cadmin', iat: now, exp: now + SESSION_HOURS * 3600000 });
   return ok({ token, me: publicUser(user) });
@@ -117,25 +117,24 @@ const actions = {
       if (String(newPassword).length < 8) return err(400, 'weak_password', 'كلمة المرور الجديدة 8 أحرف على الأقل');
       Object.assign(user, hashPassword(newPassword));
     }
-    await setJSON(userKey(user.username), user);
-    return ok({ me: publicUser(user) });
+    return ok({ me: publicUser(await db.saveAccount(user)) });
   }
 };
 
-export default async (req) => {
+export default handler(async (req) => {
   if (req.method !== 'POST') return err(405, 'method', 'Method not allowed');
   const body = await readBody(req);
   if (body.action === 'login') return login(body);
 
   const payload = verifyToken(bearer(req));
   if (!payload || payload.role !== 'cadmin') return err(401, 'session_expired', 'انتهت الجلسة. سجّل الدخول مجددًا');
-  const ctx = await context(await getJSON(userKey(normUser(payload.u))));
+  const ctx = await context(await db.getAccount(normUser(payload.u)));
   if (ctx.error) return ctx.error;
   if (ctx.company.id !== payload.lic) return err(401, 'session_expired', 'انتهت الجلسة. سجّل الدخول مجددًا');
 
   const fn = actions[body.action];
   if (!fn) return err(400, 'bad_action', 'Unknown action');
   return fn(ctx, body);
-};
+});
 
 export const config = { path: '/api/company' };

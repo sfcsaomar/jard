@@ -23,6 +23,7 @@ async function request(path, body) {
     console.error('Supabase error', r.status, path, text.slice(0, 500));
     const e = new Error(`supabase ${r.status}`);
     e.status = r.status;
+    e.detail = (data && typeof data === 'object' && data.message) || '';
     throw e;
   }
   return data;

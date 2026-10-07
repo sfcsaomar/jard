@@ -1,8 +1,8 @@
 // Account management shared by the super-admin panel and the company-admin panel.
 import {
-  err, store, getJSON, setJSON, hashPassword, userKey, licKey, normUser, usageKey, monthStr,
-  normSettings, normCategories, projectKey, listPrefix, isAdminRole, newId, ensureProjects, normTerm
+  err, db, hashPassword, normUser, monthStr, normSettings, normCategories, isAdminRole, newId, ensureProjects, normTerm
 } from './common.mjs';
+import { isUserLimitError } from './db.mjs';
 import { syncEnabled, rpc } from './supa.mjs';
 
 // Asset counts per project from the synced inventory; empty when sync is off or unreachable.
@@ -67,16 +67,16 @@ export function publicCompany(c) {
 }
 
 export async function companyUsers(companyId) {
-  return (await listPrefix('users/')).filter((u) => u.licenseId === companyId);
+  return db.listAccounts(companyId);
 }
 
 // Full picture of one company, used by both panels.
 export async function companySnapshot(company, { withNotes = false } = {}) {
   const projects = await ensureProjects(company);
   const users = await companyUsers(company.id);
-  const fieldUsers = users.filter((u) => !isAdminRole(u));
+  const fieldUsers = users.filter((u) => u.role === 'user');
   const m = monthStr();
-  const usage = (await getJSON(usageKey(company.id, m))) || { count: 0 };
+  const usage = (await db.usageGet(company.id, m)) || { count: 0 };
   const pub = publicCompany(company);
   if (withNotes) pub.notes = company.notes || '';
   projects.sort((a, b) => String(a.createdAt).localeCompare(String(b.createdAt)));
@@ -100,7 +100,7 @@ export async function saveAccount(company, input, role) {
   if (!USERNAME_RE.test(username)) {
     return { error: err(400, 'bad_username', 'اسم المستخدم: 3-40 حرفًا إنجليزيًا صغيرًا أو أرقامًا أو . _ -') };
   }
-  const existing = await getJSON(userKey(username));
+  const existing = await db.getAccount(username);
   if (existing && existing.licenseId !== company.id) {
     return { error: err(409, 'username_taken', 'اسم المستخدم مستخدم لدى جهة أخرى. اختر اسمًا مختلفًا') };
   }
@@ -112,31 +112,33 @@ export async function saveAccount(company, input, role) {
 
   const rec = existing || { username, devices: [], createdAt: new Date().toISOString() };
   rec.licenseId = company.id;
+  rec.role = role;
   rec.displayName = String(input.displayName || '').trim().slice(0, 80);
   rec.active = input.active !== false;
 
   if (role === 'admin') {
-    rec.role = 'admin';
     rec.devices = [];
+    rec.deviceInfo = {};
+    rec.projectId = null;
   } else {
-    delete rec.role;
-    const project = await getJSON(projectKey(company.id, input.projectId));
+    const project = await db.getProject(company.id, input.projectId);
     if (!project) return { error: err(400, 'no_project', 'اختر المشروع الذي سيعمل عليه المستخدم') };
-    if (!existing) {
-      const count = (await companyUsers(company.id)).filter((u) => !isAdminRole(u)).length;
-      const max = Number(company.maxUsers || 1);
-      if (count >= max) return { error: err(400, 'user_limit', `وصلت الرخصة للحد الأعلى من المستخدمين (${max})`) };
-    }
     rec.projectId = project.id;
-    delete rec.settings; // settings now come from the project
+    rec.settings = null; // settings now come from the project
   }
   if (input.password) Object.assign(rec, hashPassword(input.password));
-  await setJSON(userKey(username), rec);
-  return { user: rec };
+  try {
+    return { user: await db.saveAccount(rec) };
+  } catch (e) {
+    if (isUserLimitError(e)) {
+      return { error: err(400, 'user_limit', `وصلت الرخصة للحد الأعلى من المستخدمين (${Number(company.maxUsers || 1)})`) };
+    }
+    throw e;
+  }
 }
 
 export async function ownedUser(company, username) {
-  const u = await getJSON(userKey(username));
+  const u = await db.getAccount(username);
   if (!u || u.licenseId !== company.id) return null;
   return u;
 }
@@ -144,20 +146,14 @@ export async function ownedUser(company, username) {
 export async function removeDevice(company, username, deviceId) {
   const u = await ownedUser(company, username);
   if (!u) return err(404, 'not_found', 'المستخدم غير موجود');
-  if (deviceId) {
-    u.devices = (u.devices || []).filter((d) => d !== deviceId);
-    if (u.deviceInfo) delete u.deviceInfo[deviceId];
-  } else {
-    u.devices = []; u.deviceInfo = {};
-  }
-  await setJSON(userKey(u.username), u);
+  await db.removeDevice(u.username, deviceId || null);
   return null;
 }
 
 export async function deleteAccount(company, username) {
   const u = await ownedUser(company, username);
   if (!u) return err(404, 'not_found', 'المستخدم غير موجود');
-  await store().delete(userKey(u.username));
+  await db.deleteAccount(u.username);
   return null;
 }
 
@@ -166,7 +162,7 @@ export async function saveProject(company, input) {
   const name = String(input?.name || '').trim().slice(0, 120);
   if (!name) return { error: err(400, 'missing', 'اسم المشروع مطلوب') };
   const id = input.id || newId();
-  const old = input.id ? await getJSON(projectKey(company.id, id)) : null;
+  const old = input.id ? await db.getProject(company.id, id) : null;
   if (input.id && !old) return { error: err(404, 'not_found', 'المشروع غير موجود') };
   const rec = {
     ...(old || { createdAt: new Date().toISOString(), categories: [] }),
@@ -175,36 +171,36 @@ export async function saveProject(company, input) {
     notes: String(input.notes || '').slice(0, 500),
     settings: normSettings(input.settings || old?.settings)
   };
-  await setJSON(projectKey(company.id, id), rec);
-  return { project: rec };
+  const saved = await db.saveProject(rec);
+  if (!saved) return { error: err(404, 'not_found', 'المشروع غير موجود') };
+  return { project: saved };
 }
 
 export async function setCategories(company, projectId, categories) {
-  const p = await getJSON(projectKey(company.id, projectId));
+  const p = await db.getProject(company.id, projectId);
   if (!p) return { error: err(404, 'not_found', 'المشروع غير موجود') };
   p.categories = normCategories(categories);
   p.categoriesUpdatedAt = new Date().toISOString();
-  await setJSON(projectKey(company.id, projectId), p);
-  return { project: p };
+  return { project: await db.saveProject(p) };
 }
 
 export async function getProject(company, projectId) {
-  return getJSON(projectKey(company.id, projectId));
+  return db.getProject(company.id, projectId);
 }
 
 export async function deleteProject(company, projectId) {
-  const users = (await companyUsers(company.id)).filter((u) => u.projectId === projectId && !isAdminRole(u));
+  const users = (await companyUsers(company.id)).filter((u) => u.projectId === projectId && u.role === 'user');
   if (users.length) return err(400, 'has_users', 'انقل مستخدمي هذا المشروع إلى مشروع آخر أولًا');
   const counts = await assetCounts(company.id);
   if (counts && Number(counts[projectId] || 0) > 0) {
     return err(400, 'has_assets', 'لهذا المشروع أصول مرفوعة على الخادم، فلا يمكن حذفه. يمكنك إيقافه بدل الحذف');
   }
-  const projects = await listPrefix(`projects/${company.id}/`);
+  const projects = await db.listProjects(company.id);
   if (projects.length <= 1) return err(400, 'last_project', 'لا يمكن حذف آخر مشروع في الشركة');
-  await store().delete(projectKey(company.id, projectId));
+  await db.deleteProject(company.id, projectId);
   return null;
 }
 
 export async function loadCompany(id) {
-  return id ? getJSON(licKey(id)) : null;
+  return db.getCompany(id);
 }
