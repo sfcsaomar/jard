@@ -86,14 +86,15 @@ ok(Object.entries({ ...AR, ...EN }).every(([, v]) => String(v).trim()), 'no empt
 ok(!/[\u0600-\u06FF]/.test(Object.values(EN).join(' ')), 'English texts contain no Arabic letters');
 
 // Every key the converted pages use exists. Converted = fully bilingual; Arabic text inside them is a bug.
-const BILINGUAL = ['admin.html', 'panel/admin.js', 'panel/charts.js', 'panel/common.js', 'i18n/i18n.js'];
+const BILINGUAL = ['admin.html', 'panel/admin.js', 'company.html', 'panel/company.js', 'panel/charts.js', 'panel/common.js', 'i18n/i18n.js'];
 const used = new Set();
 for (const f of BILINGUAL) {
   const src = read(f);
   for (const m of src.matchAll(/\b(?:t|msgOf\([^,]+,)\s*\(?\s*'([a-z]+\.[A-Za-z0-9_.]+)'/g)) used.add(m[1]);
   for (const m of src.matchAll(/data-i18n(?:-html|-ph|-title)?="([^"]+)"/g)) used.add(m[1]);
   for (const m of src.matchAll(/t\('([a-z]+\.[A-Za-z0-9_.]+\.)' \+/g)) for (const k of Object.keys(AR)) if (k.startsWith(m[1])) used.add(k);
-  const arabic = src.replace(/langName = [^\n]*/, '').replace(/'العربية'/g, '').match(/[\u0600-\u06FF][^'"`<\n]*/);
+  // classify() matches Arabic column headers in imported Excel files: data, not interface text.
+  const arabic = src.replace(/function classify[\s\S]*?\n}\n/, '').replace(/langName = [^\n]*/, '').replace(/العربية/g, '')  /* a language named in itself */.match(/[\u0600-\u06FF][^'"`<\n]*/);
   ok(!arabic, `${f} has no hard-coded Arabic` + (arabic ? ' — "' + arabic[0].slice(0, 40) + '"' : ''));
 }
 for (const k of [...used]) if (!k.includes('.') || k.endsWith('.')) used.delete(k);

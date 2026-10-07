@@ -29,7 +29,8 @@ function barChart(el, rows, opt = {}){
       ticks += `<text x="${(x + bw / 2).toFixed(1)}" y="${H - 6}" text-anchor="middle">${esc(label(r))}</text>`;
     }
   });
-  const grid = [0.5, 1].map(f=>{
+  // A middle line only when its label is meaningful (small whole counts would repeat the top value).
+  const grid = (opt.format || max >= 4 ? [0.5, 1] : [1]).map(f=>{
     const y = H - padB - Math.round(f * (H - padT - padB));
     return `<line class="grid" x1="0" x2="${W}" y1="${y}" y2="${y}"/><text x="${rtl ? W - 2 : 2}" y="${y - 4}" text-anchor="${rtl ? 'end' : 'start'}">${esc(fmt(max * f))}</text>`;
   }).join('');

@@ -85,9 +85,9 @@ try {
   await shot(co, 'company-login');
   await co.fill('#lg_user', 'co.admin'); await co.fill('#lg_pass', 'copass123'); await co.click('#loginBtn');
   await co.waitForSelector('#appView', { state: 'visible' });
-  await co.click('[data-tab=projects]'); await co.click('#newProjBtn'); await co.fill('#p_name', 'HQ'); await co.click('#projForm button[type=submit]');
+  await co.click('#nav a[data-route=projects]'); await co.click('#newProjBtn'); await co.fill('#p_name', 'HQ'); await co.click('#projForm button[type=submit]');
   await co.waitForSelector('#catModal.open'); await co.click('#catModal [data-close]');
-  await co.click('[data-tab=users]'); await co.click('#newUserBtn');
+  await co.click('#nav a[data-route=users]'); await co.click('#newUserBtn');
   await co.fill('#u_username', 'walker'); await co.fill('#u_email', 'walker@acme.com');
   await co.click('#userForm button[type=submit]');
   await co.waitForTimeout(700);
@@ -203,7 +203,55 @@ try {
   await small.click('#menuBtn');
   await small.waitForTimeout(400);
   ok(await small.isVisible('#nav a[data-route=claude]'), 'phone: side menu opens');
+  for (const page of ['home', 'companies', 'claude', 'providers']) {
+    await small.goto(B + '/admin#' + page); await small.waitForTimeout(400);
+    ok(await small.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1), `admin ${page} fits the phone width`);
+  }
   await shot(small, 'admin-phone-menu');
+
+  // ---------- company dashboard, Arabic and English ----------
+  await co.goto('about:blank');
+  await co.goto(B + '/company#home');
+  await co.waitForSelector('#homeKpis .kpi');
+  await co.waitForTimeout(900);
+  ok(await co.locator('#chartDaily svg rect.cbar').count() === 30, 'company home chart: 30 days');
+  ok((await co.innerText('#homeTeamBody')).includes('walker'), 'company home lists the team');
+  for (const page of ['home', 'inventory', 'projects', 'users', 'licence', 'account']) {
+    await co.goto(B + '/company#' + page);
+    await co.waitForTimeout(600);
+    const text = await co.innerText('body');
+    ok(!rawKey.test(text), `company ${page} (ar): no raw text keys` + (rawKey.test(text) ? ' — ' + text.match(rawKey)[0] : ''));
+    await shot(co, 'company-' + page, true);
+  }
+  ok((await co.innerText('#invBody')).includes('A-0001'), 'company inventory lists the synced asset');
+  await co.evaluate(() => localStorage.setItem('aman_lang', 'en'));
+  await co.goto('about:blank');
+  for (const page of ['home', 'inventory', 'projects', 'users', 'licence', 'account']) {
+    await co.goto(B + '/company#' + page);
+    await co.waitForTimeout(700);
+    const text = await co.innerText('body');
+    const arabicLeft = text.replace(/شركة الاختبار|طاولة اجتماعات|العربية/g, '').match(/[\u0600-\u06FF]+/);
+    ok(!rawKey.test(text) && !arabicLeft, `company ${page} (en): English only, no raw keys` + (rawKey.test(text) ? ' — ' + text.match(rawKey)[0] : '') + (arabicLeft ? ' — "' + arabicLeft[0] + '"' : ''));
+    await shot(co, 'company-en-' + page, true);
+  }
+  await co.click('#nav a[data-route=projects]');
+  await co.click('#projBody [data-edit-proj]');
+  await co.waitForSelector('#projModal.open');
+  await shot(co, 'company-en-project-window');
+  await co.keyboard.press('Escape');
+  ok(!(await co.isVisible('#projModal.open')), 'Esc closes windows');
+  await co.evaluate(() => localStorage.setItem('aman_lang', 'ar'));
+  const coPhone = watch(await phone.newPage(), 'company-phone');
+  await coPhone.goto(B + '/company#home');
+  await coPhone.fill('#lg_user', 'co.admin'); await coPhone.fill('#lg_pass', 'copass123'); await coPhone.click('#loginBtn');
+  await coPhone.waitForSelector('#homeKpis .kpi');
+  await coPhone.waitForTimeout(700);
+  await shot(coPhone, 'company-phone-home', true);
+  ok(await coPhone.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1), 'company home fits the phone width');
+  for (const page of ['inventory', 'projects', 'users', 'licence']) {
+    await coPhone.goto(B + '/company#' + page); await coPhone.waitForTimeout(400);
+    ok(await coPhone.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1), `company ${page} fits the phone width`);
+  }
 
   // ---------- forgot password page ----------
   const fp = watch(await desk.newPage(), 'forgot');

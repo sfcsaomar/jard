@@ -51,6 +51,12 @@ const actions = {
   async overview({ company, user }) {
     return ok({ ...(await companySnapshot(company)), me: publicUser(user), mail: mailEnabled() });
   },
+  // Home page numbers: assets per day, per project and per field user (needs 0004_dashboards.sql).
+  async dashboard({ company }) {
+    if (!syncEnabled()) return ok({ activity: null });
+    try { return ok({ activity: await db.dashCompany(company.id, 30) }); }
+    catch { return ok({ activity: null }); }
+  },
   async saveProject({ company }, { project }) {
     const r = await saveProject(company, project);
     return r.error || ok({ id: r.project.id });

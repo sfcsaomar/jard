@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="robots" content="noindex, nofollow">
-<title>AMAN · لوحة الشركة</title>
+<title>AMAN · Company</title>
 <link rel="icon" href="/icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <meta name="theme-color" content="#01345A">
@@ -16,272 +16,303 @@
 </head>
 <body>
 
+<!-- ================= sign-in ================= -->
 <div class="login" id="loginView">
- <div class="login-brand"><img src="/brand/aman-logo-on-dark.svg" alt="AMAN"><div class="ctx">لوحة الشركة</div></div>
+ <div class="login-brand"><img src="/brand/aman-logo-on-dark.svg" alt="AMAN"><div class="ctx" data-i18n="co.panelName"></div></div>
  <div class="login-card">
-  <h2>تسجيل الدخول</h2>
-  <p class="sub">إدارة مشاريع الجرد والمستخدمين والأجهزة. ادخل بحساب مدير الشركة الذي استلمته من المزوّد.</p>
+  <h2 data-i18n="common.signIn"></h2>
+  <p class="sub" data-i18n="co.loginHint"></p>
   <form id="loginForm">
-    <input id="lg_user" dir="ltr" autocapitalize="none" autocomplete="username" placeholder="اسم المستخدم">
-    <input type="password" id="lg_pass" dir="ltr" autocomplete="current-password" placeholder="كلمة المرور">
+    <label for="lg_user" data-i18n="common.username"></label>
+    <input id="lg_user" dir="ltr" autocapitalize="none" autocomplete="username">
+    <label for="lg_pass" data-i18n="common.password"></label>
+    <input type="password" id="lg_pass" dir="ltr" autocomplete="current-password">
     <div class="form-err" id="loginErr"></div>
-    <button class="btn btn-primary" style="width:100%" type="submit" id="loginBtn">دخول</button>
+    <button class="btn btn-primary" style="width:100%" type="submit" id="loginBtn" data-i18n="common.signInBtn"></button>
   </form>
-  <p style="text-align:center; margin-top:14px; font-size:13px"><a href="/account">نسيت كلمة المرور؟</a></p>
+  <p style="text-align:center; margin-top:14px; font-size:13px"><a href="/account" data-i18n="common.forgot"></a></p>
  </div>
+ <div class="lang-row"><button class="lang-btn" type="button" data-lang-toggle></button></div>
 </div>
 
-<div id="appView" style="display:none">
-<div class="brandbar"><div class="inner"><img src="/brand/aman-wordmark-on-dark.svg" alt="AMAN"><span class="sep"></span><span class="ctx">لوحة الشركة</span></div></div>
-<div class="wrap">
-  <header>
-    <div>
-      <h1 id="coName">—</h1>
-      <div class="sub">لوحة الشركة · <span id="meLbl"></span></div>
+<!-- ================= app ================= -->
+<div class="shell" id="appView" style="display:none">
+  <aside class="side" id="side">
+    <div class="side-brand"><img src="/brand/aman-wordmark-on-dark.svg" alt="AMAN"><span id="coName"></span></div>
+    <nav id="nav">
+      <a href="#home" data-route="home"><svg viewBox="0 0 24 24"><path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/><path d="M10 20v-6h4v6"/></svg><span data-i18n="co.nav.home"></span></a>
+      <a href="#inventory" data-route="inventory"><svg viewBox="0 0 24 24"><path d="M4 7l8-4 8 4-8 4z"/><path d="M4 7v10l8 4 8-4V7"/><path d="M12 11v10"/></svg><span data-i18n="co.nav.inventory"></span></a>
+      <a href="#projects" data-route="projects"><svg viewBox="0 0 24 24"><path d="M3 7h6l2 2h10v10H3z"/></svg><span data-i18n="co.nav.projects"></span></a>
+      <a href="#users" data-route="users"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c1-3.5 3.5-5.5 6.5-5.5s5.5 2 6.5 5.5"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7M18 14.5c2 .6 3.3 2.5 3.8 5.5"/></svg><span data-i18n="co.nav.users"></span><b class="count" id="navPending" hidden></b></a>
+      <a href="#licence" data-route="licence"><svg viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/></svg><span data-i18n="co.nav.licence"></span><b class="count" id="navLic" hidden>!</b></a>
+      <div class="nav-sep"></div>
+      <a href="#account" data-route="account"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg><span data-i18n="co.nav.account"></span></a>
+    </nav>
+    <div class="side-foot">
+      <div class="who" id="meLbl"></div>
+      <div class="row">
+        <button type="button" data-lang-toggle></button>
+        <button type="button" id="logoutBtn" data-i18n="common.signOut"></button>
+      </div>
     </div>
-    <div class="actions">
-      <button class="btn btn-ghost" id="reloadBtn">تحديث</button>
-      <button class="btn btn-ghost" id="logoutBtn">خروج</button>
-    </div>
-  </header>
+  </aside>
+  <div class="side-scrim" id="scrim"></div>
 
-  <div class="tabs" id="tabs">
-    <button class="tab on" data-tab="license">الرخصة</button>
-    <button class="tab" data-tab="inventory">الجرد</button>
-    <button class="tab" data-tab="projects">المشاريع</button>
-    <button class="tab" data-tab="users">المستخدمون والأجهزة</button>
-    <button class="tab" data-tab="account">حسابي</button>
+  <div class="main">
+    <header class="topbar">
+      <button class="menu-btn" id="menuBtn" type="button" data-i18n-title="common.menu"><svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
+      <h1 id="pageTitle"></h1>
+      <span class="spacer"></span>
+      <button class="btn btn-ghost btn-sm" id="reloadBtn" data-i18n="common.refresh"></button>
+      <div class="sub" id="pageSub"></div>
+    </header>
+
+    <div class="content">
+      <div id="notices"></div>
+
+      <!-- ---------- home ---------- -->
+      <section class="page" data-page="home" hidden>
+        <div class="kpis" id="homeKpis"></div>
+        <div class="cols">
+          <div class="stack">
+            <div class="card">
+              <div class="card-head"><h2><span data-i18n="co.home.daily"></span> <small data-i18n="common.last30"></small></h2></div>
+              <div id="chartDaily"></div>
+            </div>
+            <div class="card">
+              <div class="card-head"><h2 data-i18n="co.home.projects"></h2><a href="#projects" class="sub" data-i18n="common.viewAll"></a></div>
+              <div class="table-wrap"><table>
+                <thead><tr><th data-i18n="co.col.project"></th><th data-i18n="common.status"></th><th data-i18n="co.col.users"></th><th data-i18n="co.col.assets"></th><th data-i18n="co.col.week"></th><th data-i18n="co.col.flagged"></th><th data-i18n="co.col.lastSync"></th></tr></thead>
+                <tbody id="homeProjBody"></tbody>
+              </table></div>
+            </div>
+            <div class="card">
+              <div class="card-head"><h2 data-i18n="co.home.team"></h2><a href="#users" class="sub" data-i18n="common.viewAll"></a></div>
+              <div class="table-wrap"><table>
+                <thead><tr><th data-i18n="co.col.user"></th><th data-i18n="co.col.project"></th><th data-i18n="co.col.today"></th><th data-i18n="co.col.week"></th><th data-i18n="co.col.total"></th><th data-i18n="co.col.lastSync"></th></tr></thead>
+                <tbody id="homeTeamBody"></tbody>
+              </table></div>
+            </div>
+          </div>
+          <div class="stack">
+            <div class="card"><div class="card-head"><h2 data-i18n="co.home.attention"></h2></div><div class="list" id="attentionList"></div></div>
+            <div class="card"><div class="card-head"><h2 data-i18n="co.home.start"></h2></div><div class="list" id="startList"></div></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ---------- inventory ---------- -->
+      <section class="page" data-page="inventory" hidden>
+        <div class="card" id="invOff" hidden>
+          <h2 data-i18n="co.nav.inventory"></h2>
+          <p class="hint" data-i18n="co.inv.off"></p>
+        </div>
+        <div id="invOn">
+          <div class="toolbar">
+            <select id="invProject" style="width:auto; min-width:220px;" data-i18n-title="co.col.project"></select>
+            <span class="spacer"></span>
+            <button class="btn btn-primary btn-sm" id="invExcel" data-i18n="co.inv.excel"></button>
+            <button class="btn btn-ghost btn-sm" id="invPhotosBtn" data-i18n="co.inv.photos"></button>
+          </div>
+          <div class="kpis" id="invTiles"></div>
+          <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); gap:16px; margin-bottom:16px;">
+            <div class="card" style="margin:0"><h3 style="margin-bottom:8px" data-i18n="co.inv.byUser"></h3><div class="table-wrap"><table><thead><tr><th data-i18n="co.col.user"></th><th data-i18n="co.col.assets"></th><th data-i18n="co.col.lastSync"></th></tr></thead><tbody id="invByUser"></tbody></table></div></div>
+            <div class="card" style="margin:0"><h3 style="margin-bottom:8px" data-i18n="co.inv.byBuilding"></h3><div class="table-wrap"><table><thead><tr><th data-i18n="co.f.building"></th><th data-i18n="co.col.assets"></th></tr></thead><tbody id="invByBuilding"></tbody></table></div></div>
+          </div>
+          <div class="card">
+            <div class="card-head">
+              <h2 data-i18n="co.inv.assets"></h2>
+              <input id="invSearch" type="search" data-i18n-ph="co.inv.search" style="max-width:420px;">
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th></th><th data-i18n="co.f.tag"></th><th data-i18n="co.f.name"></th><th data-i18n="co.f.category"></th><th data-i18n="co.f.location"></th><th data-i18n="co.col.user"></th><th data-i18n="co.col.synced"></th></tr></thead>
+                <tbody id="invBody"></tbody>
+              </table>
+            </div>
+            <div class="actions" style="justify-content:space-between; align-items:center; margin-top:10px;">
+              <span class="sub" id="invPageInfo"></span>
+              <div class="actions">
+                <button class="btn btn-ghost btn-sm" id="invPrev" data-i18n="co.inv.prev"></button>
+                <button class="btn btn-ghost btn-sm" id="invNext" data-i18n="co.inv.next"></button>
+              </div>
+            </div>
+          </div>
+          <p class="hint" data-i18n="co.inv.hint"></p>
+        </div>
+      </section>
+
+      <!-- ---------- projects ---------- -->
+      <section class="page" data-page="projects" hidden>
+        <div class="toolbar">
+          <p class="hint" style="margin:0; flex:1; min-width:240px" data-i18n="co.proj.hint"></p>
+          <button class="btn btn-primary" id="newProjBtn" data-i18n="co.proj.new"></button>
+        </div>
+        <div class="card">
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th data-i18n="co.col.project"></th><th data-i18n="common.status"></th><th data-i18n="co.proj.lang"></th><th data-i18n="co.proj.required"></th><th data-i18n="co.proj.categories"></th><th data-i18n="co.col.users"></th><th data-i18n="co.col.assets"></th><th></th></tr></thead>
+              <tbody id="projBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ---------- users ---------- -->
+      <section class="page" data-page="users" hidden>
+        <div class="toolbar">
+          <div style="flex:1; min-width:220px"><b id="userQuota"></b></div>
+          <button class="btn btn-primary" id="newUserBtn" data-i18n="co.user.new"></button>
+        </div>
+        <div class="card">
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th data-i18n="common.username"></th><th data-i18n="common.name"></th><th data-i18n="common.email"></th><th data-i18n="co.col.project"></th><th data-i18n="common.status"></th><th data-i18n="co.col.devices"></th><th data-i18n="common.lastLogin"></th><th></th></tr></thead>
+              <tbody id="userBody"></tbody>
+            </table>
+          </div>
+        </div>
+        <p class="hint" data-i18n="co.user.hint"></p>
+      </section>
+
+      <!-- ---------- licence ---------- -->
+      <section class="page" data-page="licence" hidden>
+        <div class="card">
+          <div class="card-head"><h2 data-i18n="co.nav.licence"></h2><span id="licStatus"></span></div>
+          <div class="kpis" id="licTiles" style="margin-bottom:6px"></div>
+          <p class="hint" style="margin-bottom:0" data-i18n="co.lic.hint"></p>
+        </div>
+      </section>
+
+      <!-- ---------- my account ---------- -->
+      <section class="page" data-page="account" hidden>
+        <div class="card" style="max-width:520px">
+          <h2 style="margin-bottom:12px" data-i18n="co.nav.account"></h2>
+          <form id="meForm">
+            <div class="grid" style="grid-template-columns:1fr">
+              <div><label for="m_user" data-i18n="common.username"></label><input id="m_user" dir="ltr" readonly style="background:var(--muted)"></div>
+              <div><label for="m_display" data-i18n="common.displayName"></label><input id="m_display"></div>
+              <div><label for="m_email" data-i18n="common.email"></label><input id="m_email" type="email" dir="ltr" required><div class="sub" id="m_emailState" style="font-size:12px;margin-top:4px"></div></div>
+              <div class="section-title" data-i18n="common.changePassword"></div>
+              <div><label for="m_cur" data-i18n="common.currentPassword"></label><input id="m_cur" type="password" dir="ltr" autocomplete="current-password"></div>
+              <div><label for="m_new" data-i18n="co.newPassword8"></label><input id="m_new" type="password" dir="ltr" autocomplete="new-password"></div>
+            </div>
+            <div class="form-err" id="meErr"></div>
+            <button class="btn btn-primary" type="submit" data-i18n="common.save"></button>
+          </form>
+        </div>
+      </section>
+    </div>
   </div>
-
-  <!-- License -->
-  <section data-pane="license">
-    <div class="card">
-      <div class="card-head"><h2>الرخصة</h2><span id="licStatus"></span></div>
-      <div class="tiles" id="licTiles"></div>
-      <p class="hint" style="margin-bottom:0">لتجديد الرخصة أو زيادة عدد المستخدمين أو الأجهزة أو رصيد الذكاء الاصطناعي، تواصل مع المزوّد.</p>
-    </div>
-  </section>
-
-  <!-- Inventory (synced from the phones) -->
-  <section data-pane="inventory" hidden>
-    <div class="card" id="invOff" hidden>
-      <h2>الجرد</h2>
-      <p class="hint">المزامنة مع الخادم غير مفعّلة بعد. تواصل مع المزوّد لتفعيلها، وحتى ذلك الحين يصدّر كل مستخدم ملفه من هاتفه.</p>
-    </div>
-    <div id="invOn">
-      <div class="card">
-        <div class="card-head">
-          <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
-            <h2>الجرد</h2>
-            <select id="invProject" style="width:auto; min-width:200px;"></select>
-          </div>
-          <div class="actions">
-            <button class="btn btn-ghost btn-sm" id="invReload">تحديث</button>
-            <button class="btn btn-primary btn-sm" id="invExcel">تصدير Excel</button>
-            <button class="btn btn-ghost btn-sm" id="invPhotosBtn">تنزيل الصور</button>
-          </div>
-        </div>
-        <div class="tiles" id="invTiles"></div>
-        <p class="hint" style="margin-bottom:0">تُرفع الأصول وصورها تلقائيًا من هواتف المستخدمين عند اتصالها بالإنترنت. ما لم يُرفع بعد يظهر هنا بعد أول اتصال للهاتف.</p>
-      </div>
-      <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); gap:18px; margin-bottom:18px;">
-        <div class="card" style="margin:0"><h3 style="margin-bottom:8px">حسب المستخدم</h3><div class="table-wrap"><table><thead><tr><th>المستخدم</th><th>الأصول</th><th>آخر رفع</th></tr></thead><tbody id="invByUser"></tbody></table></div></div>
-        <div class="card" style="margin:0"><h3 style="margin-bottom:8px">حسب المبنى</h3><div class="table-wrap"><table><thead><tr><th>المبنى</th><th>الأصول</th></tr></thead><tbody id="invByBuilding"></tbody></table></div></div>
-      </div>
-      <div class="card">
-        <div class="card-head">
-          <h2>الأصول</h2>
-          <input id="invSearch" placeholder="بحث برقم الأصل أو الوصف أو الرقم التسلسلي أو الموقع أو المستخدم" style="max-width:420px;">
-        </div>
-        <div class="table-wrap">
-          <table>
-            <thead><tr><th></th><th>رقم الأصل</th><th>الوصف</th><th>الفئة</th><th>الموقع</th><th>المستخدم</th><th>رُفع</th></tr></thead>
-            <tbody id="invBody"></tbody>
-          </table>
-        </div>
-        <div class="actions" style="justify-content:space-between; align-items:center; margin-top:10px;">
-          <span class="sub" id="invPageInfo"></span>
-          <div class="actions">
-            <button class="btn btn-ghost btn-sm" id="invPrev">السابق</button>
-            <button class="btn btn-ghost btn-sm" id="invNext">التالي</button>
-          </div>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- Projects -->
-  <section data-pane="projects" hidden>
-    <div class="card">
-      <div class="card-head">
-        <h2>المشاريع</h2>
-        <button class="btn btn-primary" id="newProjBtn">+ مشروع جديد</button>
-      </div>
-      <p class="hint" style="margin-top:0">لكل مشروع لغة إدخال وحقول إجبارية وقائمة فئات خاصة به. كل مستخدم يعمل على مشروع واحد، ويرى إعدادات مشروعه وفئاته على هاتفه.</p>
-      <div class="table-wrap">
-        <table>
-          <thead><tr><th>المشروع</th><th>الحالة</th><th>لغة الإدخال</th><th>الحقول الإجبارية</th><th>الفئات</th><th>المستخدمون</th><th>الأصول المرفوعة</th><th></th></tr></thead>
-          <tbody id="projBody"></tbody>
-        </table>
-      </div>
-    </div>
-  </section>
-
-  <!-- Users -->
-  <section data-pane="users" hidden>
-    <div class="card">
-      <div class="card-head">
-        <div><h2>المستخدمون الميدانيون</h2><div class="sub" id="userQuota"></div></div>
-        <button class="btn btn-primary" id="newUserBtn">+ مستخدم جديد</button>
-      </div>
-      <p class="hint" style="margin-top:0">
-        يسجّل الهاتف نفسه تلقائيًا عند أول دخول للمستخدم، ضمن عدد الأجهزة المسموح لكل مستخدم في رخصتك.
-        لإضافة هاتف جديد بعد امتلاء العدد، افتح «الأجهزة» وحرّر الجهاز القديم، ثم يسجّل المستخدم دخوله من الهاتف الجديد.
-      </p>
-      <div class="table-wrap">
-        <table>
-          <thead><tr><th>اسم المستخدم</th><th>الاسم</th><th>البريد</th><th>المشروع</th><th>الحالة</th><th>الأجهزة</th><th>آخر دخول</th><th></th></tr></thead>
-          <tbody id="userBody"></tbody>
-        </table>
-      </div>
-    </div>
-  </section>
-
-  <!-- Account -->
-  <section data-pane="account" hidden>
-    <div class="card" style="max-width:520px">
-      <h2 style="margin-bottom:12px">حسابي</h2>
-      <form id="meForm">
-        <div class="grid" style="grid-template-columns:1fr">
-          <div><label>اسم المستخدم</label><input id="m_user" dir="ltr" readonly style="background:var(--muted)"></div>
-          <div><label>الاسم الظاهر</label><input id="m_display"></div>
-          <div><label>البريد الإلكتروني</label><input id="m_email" type="email" dir="ltr" required><div class="sub" id="m_emailState" style="font-size:12px;margin-top:4px"></div></div>
-          <div class="section-title">تغيير كلمة المرور (اختياري)</div>
-          <div><label>كلمة المرور الحالية</label><input id="m_cur" type="password" dir="ltr" autocomplete="current-password"></div>
-          <div><label>كلمة المرور الجديدة (8 أحرف على الأقل)</label><input id="m_new" type="password" dir="ltr" autocomplete="new-password"></div>
-        </div>
-        <div class="form-err" id="meErr"></div>
-        <button class="btn btn-primary" type="submit">حفظ</button>
-      </form>
-    </div>
-  </section>
-</div>
 </div>
 
-<!-- Project modal -->
+<!-- ================= windows ================= -->
 <div class="modal-bg" id="projModal">
   <form class="modal" id="projForm">
-    <h2 id="projTitle">مشروع جديد</h2>
+    <h2 id="projTitle"></h2>
     <input type="hidden" id="p_id">
     <div class="grid">
-      <div style="grid-column:1/-1"><label>اسم المشروع</label><input id="p_name" required placeholder="مثال: جرد المقر الرئيسي 2026"></div>
-      <div><label>لغة الإدخال</label>
+      <div style="grid-column:1/-1"><label for="p_name" data-i18n="co.proj.name"></label><input id="p_name" required data-i18n-ph="co.proj.namePh"></div>
+      <div><label for="p_lang" data-i18n="co.proj.lang"></label>
         <select id="p_lang"><option value="ar">العربية</option><option value="en">English</option></select>
       </div>
-      <div><label>أقل عدد صور لكل أصل (1-4)</label><input id="p_minPhotos" type="number" min="1" max="4" value="1"></div>
-      <div class="check"><input type="checkbox" id="p_active" checked><label for="p_active">المشروع فعّال</label></div>
-      <div class="section-title">الحقول الإجبارية</div>
-      <div style="grid-column:1/-1" class="hint">رقم الأصل وصورة واحدة إجباريان دائمًا. الحقول المحددة هنا تُطلب من المستخدم قبل الحفظ.</div>
+      <div><label for="p_minPhotos" data-i18n="co.proj.minPhotos"></label><input id="p_minPhotos" type="number" min="1" max="4" value="1" dir="ltr"></div>
+      <div class="check"><input type="checkbox" id="p_active" checked><label for="p_active" data-i18n="co.proj.active"></label></div>
+      <div class="section-title" data-i18n="co.proj.required"></div>
+      <div style="grid-column:1/-1" class="hint" data-i18n="co.proj.requiredHint"></div>
       <div class="req-grid" id="p_required"></div>
-      <div style="grid-column:1/-1"><label>ملاحظات</label><textarea id="p_notes" rows="2"></textarea></div>
+      <div style="grid-column:1/-1"><label for="p_notes" data-i18n="co.proj.notes"></label><textarea id="p_notes" rows="2"></textarea></div>
     </div>
-    <p class="hint">لغة الإدخال تحدد لغة الوصف واقتراحات الذكاء الاصطناعي. تصل التغييرات لهواتف المستخدمين عند أول اتصال بالإنترنت.</p>
+    <p class="hint" data-i18n="co.proj.langHint"></p>
     <div class="form-err" id="projErr"></div>
     <div class="modal-foot">
-      <button class="btn btn-primary" type="submit">حفظ</button>
-      <button class="btn btn-ghost" type="button" data-close>إلغاء</button>
+      <button class="btn btn-primary" type="submit" data-i18n="common.save"></button>
+      <button class="btn btn-ghost" type="button" data-close data-i18n="common.cancel"></button>
     </div>
   </form>
 </div>
 
-<!-- Categories modal -->
 <div class="modal-bg" id="catModal">
   <div class="modal wide">
     <div class="card-head" style="margin-bottom:6px">
-      <div><h2>فئات المشروع</h2><div class="sub" id="catProjName"></div></div>
+      <div><h2 data-i18n="co.cat.title"></h2><div class="sub" id="catProjName"></div></div>
       <div class="actions">
-        <button class="btn btn-ghost btn-sm" id="tplBtn">تنزيل قالب Excel</button>
-        <button class="btn btn-ghost btn-sm" id="exportCatBtn">تصدير الفئات الحالية</button>
+        <button class="btn btn-ghost btn-sm" id="tplBtn" data-i18n="co.cat.template"></button>
+        <button class="btn btn-ghost btn-sm" id="exportCatBtn" data-i18n="co.cat.export"></button>
       </div>
     </div>
-    <p class="hint">ملف Excel بأربعة أعمدة: Category Code، Category Name، Sub Category Code، Sub Category Name (أو بالعربية: كود الفئة، اسم الفئة، كود الفئة الفرعية، اسم الفئة الفرعية). كل صف فئة فرعية واحدة، ويمكن ترك اسم الفئة الرئيسية فارغًا في الصفوف التالية لها. الاستيراد يستبدل القائمة الحالية كلها.</p>
+    <p class="hint" data-i18n="co.cat.hint"></p>
     <label class="drop" id="drop">
       <input type="file" id="catFile" accept=".xlsx,.xls,.csv" hidden>
-      اضغط لاختيار ملف الفئات، أو اسحبه وأفلته هنا
+      <span data-i18n="co.cat.drop"></span>
     </label>
     <div class="form-err" id="catErr"></div>
     <div id="catSummary" class="sub" style="margin:6px 0"></div>
     <div class="cat-preview" id="catPreview"></div>
     <div class="modal-foot">
-      <button class="btn btn-primary" id="catSaveBtn" disabled>حفظ الفئات</button>
-      <button class="btn btn-danger" id="catClearBtn">إفراغ القائمة</button>
-      <button class="btn btn-ghost" type="button" data-close>إغلاق</button>
+      <button class="btn btn-primary" id="catSaveBtn" disabled data-i18n="co.cat.save"></button>
+      <button class="btn btn-danger" id="catClearBtn" data-i18n="co.cat.clear"></button>
+      <button class="btn btn-ghost" type="button" data-close data-i18n="common.close"></button>
     </div>
   </div>
 </div>
 
-<!-- User modal -->
 <div class="modal-bg" id="userModal">
   <form class="modal" id="userForm" style="max-width:560px">
-    <h2 id="userTitle">مستخدم جديد</h2>
+    <h2 id="userTitle"></h2>
     <div class="grid">
-      <div><label>اسم المستخدم</label><input id="u_username" dir="ltr" autocapitalize="none" required></div>
-      <div><label>الاسم الظاهر</label><input id="u_display"></div>
-      <div style="grid-column:1/-1"><label>المشروع</label><select id="u_project" required></select></div>
-      <div style="grid-column:1/-1"><label>البريد الإلكتروني (اختياري للمستخدم الميداني)</label><input id="u_email" type="email" dir="ltr" autocomplete="off" placeholder="name@company.com"><div class="sub" id="u_emailState" style="font-size:12px;margin-top:4px"></div></div>
-      <div><label id="u_passLbl">كلمة المرور</label><input id="u_password" dir="ltr" autocomplete="new-password"></div>
-      <div style="align-self:end"><button type="button" class="btn btn-ghost btn-sm" id="genPassBtn">توليد كلمة مرور</button></div>
-      <div class="check"><input type="checkbox" id="u_active" checked><label for="u_active">الحساب فعّال</label></div>
+      <div><label for="u_username" data-i18n="common.username"></label><input id="u_username" dir="ltr" autocapitalize="none" required></div>
+      <div><label for="u_display" data-i18n="common.displayName"></label><input id="u_display"></div>
+      <div style="grid-column:1/-1"><label for="u_project" data-i18n="co.col.project"></label><select id="u_project" required></select></div>
+      <div style="grid-column:1/-1"><label for="u_email" data-i18n="co.user.email"></label><input id="u_email" type="email" dir="ltr" autocomplete="off" placeholder="name@company.com"><div class="sub" id="u_emailState" style="font-size:12px;margin-top:4px"></div></div>
+      <div><label for="u_password" id="u_passLbl"></label><input id="u_password" dir="ltr" autocomplete="new-password"></div>
+      <div style="align-self:end"><button type="button" class="btn btn-ghost btn-sm" id="genPassBtn" data-i18n="common.genPassword"></button></div>
+      <div class="check"><input type="checkbox" id="u_active" checked><label for="u_active" data-i18n="common.accountActive"></label></div>
     </div>
-    <p class="hint">اسم المستخدم بالإنجليزية الصغيرة (3-40 حرفًا).
-      <b>مع بريد:</b> اترك كلمة المرور فارغة، فتصل المستخدم دعوة ليضع كلمة مروره بنفسه، ويستطيع لاحقًا استعادتها بنفسه.
-      <b>بدون بريد:</b> ضع كلمة مرور، وتُنسخ بيانات الدخول لترسلها له.
-      نقل المستخدم لمشروع آخر يغيّر إعداداته وفئاته عند أول اتصال، وأصوله المسجّلة تبقى على هاتفه.</p>
+    <p class="hint" data-i18n-html="co.user.formHint"></p>
     <div class="form-err" id="userErr"></div>
     <div class="modal-foot">
-      <button class="btn btn-primary" type="submit">حفظ</button>
-      <button class="btn btn-ghost" type="button" data-close>إلغاء</button>
+      <button class="btn btn-primary" type="submit" data-i18n="common.save"></button>
+      <button class="btn btn-ghost" type="button" data-close data-i18n="common.cancel"></button>
     </div>
   </form>
 </div>
 
-<!-- Devices modal -->
 <div class="modal-bg" id="devModal">
   <div class="modal" style="max-width:520px">
-    <h2>أجهزة المستخدم</h2>
+    <h2 data-i18n="co.dev.title"></h2>
     <p class="sub" id="devInfo"></p>
     <div class="dev-list" id="devList"></div>
-    <p class="hint">تحرير جهاز يوقفه عند أول اتصال له بالإنترنت، ويفتح مكانه لهاتف جديد. صدّر بيانات الجرد من الهاتف القديم قبل تحريره، لأن البيانات محفوظة على الهاتف نفسه.</p>
-    <div class="modal-foot"><button class="btn btn-ghost" type="button" data-close>إغلاق</button></div>
+    <p class="hint" data-i18n="co.dev.hint"></p>
+    <div class="modal-foot"><button class="btn btn-ghost" type="button" data-close data-i18n="common.close"></button></div>
   </div>
 </div>
 
-<!-- Asset detail modal -->
 <div class="modal-bg" id="assetModal">
   <div class="modal wide">
     <div class="card-head"><div><h2 id="am_tag" class="mono">—</h2><div class="sub" id="am_sub"></div></div>
-      <button class="btn btn-ghost btn-sm" type="button" data-close>إغلاق</button></div>
+      <button class="btn btn-ghost btn-sm" type="button" data-close data-i18n="common.close"></button></div>
     <div id="am_photos" style="display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:8px; margin-bottom:14px;"></div>
     <div class="table-wrap"><table><tbody id="am_fields"></tbody></table></div>
   </div>
 </div>
 
-<!-- Photos export modal -->
 <div class="modal-bg" id="photosModal">
   <div class="modal" style="max-width:560px">
-    <h2>تنزيل الصور</h2>
-    <p class="hint">الصور كثيرة الحجم، فتُنزَّل على أجزاء: كل جزء ملف ZIP يحتوي صور مجموعة من الأصول مرتبة برقم الأصل، بنفس أسماء ملفات تصدير الهاتف (رقم-1.jpg، رقم-label.jpg). أبقِ الصفحة مفتوحة حتى يكتمل الجزء.</p>
+    <h2 data-i18n="co.inv.photos"></h2>
+    <p class="hint" data-i18n="co.photos.hint"></p>
     <div class="dev-list" id="photoParts"></div>
     <div class="form-err" id="photosErr"></div>
-    <div class="modal-foot"><button class="btn btn-ghost" type="button" data-close>إغلاق</button></div>
+    <div class="modal-foot"><button class="btn btn-ghost" type="button" data-close data-i18n="common.close"></button></div>
   </div>
 </div>
 
-<div class="toast" id="toast"></div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <script src="/vendor/xlsx.full.min.js"></script>
 <script src="/vendor/jszip.min.js"></script>
 <script src="/panel/common.js"></script>
+<script src="/panel/charts.js"></script>
 <script src="/panel/company.js"></script>
 </body>
 </html>
