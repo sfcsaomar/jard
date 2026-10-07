@@ -2,6 +2,9 @@
   publish = "public"
   functions = "netlify/functions"
   command = "echo no build step"
+  # Skip the build (and its credits) when a push changes only tests, docs or CI settings.
+  # Exit code 0 = nothing the site uses changed = no build.
+  ignore = "git diff --quiet $CACHED_COMMIT_REF $COMMIT_REF -- public netlify netlify.toml package.json package-lock.json"
 
 [functions]
   node_bundler = "esbuild"

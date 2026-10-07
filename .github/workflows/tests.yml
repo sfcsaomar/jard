@@ -1,0 +1,37 @@
+# Runs every test on each push and pull request. A red ✗ on a commit means something broke;
+# the screenshots from the browser test are attached to the run (Artifacts → screenshots).
+name: Tests
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Install the test browser
+        run: npx playwright install --with-deps chromium
+      - name: Database, server and file checks
+        run: npm run test:server
+      - name: Browser test (panels, phone app, offline)
+        run: npm run test:browser
+      - name: Keep screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: screenshots
+          path: tests/out/
+          retention-days: 14

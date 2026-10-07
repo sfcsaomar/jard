@@ -1,10 +1,26 @@
 // Offline support: the app shell and libraries are cached so the app opens without internet.
-const CACHE = 'asset-inv-v8';
+// Every file index.html loads must be listed in SHELL (tests/static.test.mjs checks this).
+const CACHE = 'asset-inv-v9';
 const SHELL = [
   '/',
   '/index.html',
   '/manifest.webmanifest',
   '/icon.svg',
+  '/app/app.css',
+  '/app/store.js',
+  '/app/list.js',
+  '/app/form.js',
+  '/app/project-settings.js',
+  '/app/form-helpers.js',
+  '/app/scanner.js',
+  '/app/nameplate.js',
+  '/app/protection.js',
+  '/app/location.js',
+  '/app/session.js',
+  '/app/ai.js',
+  '/app/sync.js',
+  '/app/export.js',
+  '/app/main.js',
   '/icon-192.png',
   '/brand/aman-wordmark-on-dark.svg',
   '/brand/aman-logo-on-dark.svg',
@@ -38,6 +54,17 @@ self.addEventListener('fetch', (e) => {
       fetch(req)
         .then((res) => { const copy = res.clone(); caches.open(CACHE).then((c) => c.put('/index.html', copy)); return res; })
         .catch(() => caches.match('/index.html'))
+    );
+    return;
+  }
+
+  // The app's own code and styles: network first so an update never mixes old and new files,
+  // cache as fallback when offline.
+  if (url.origin === location.origin && url.pathname.startsWith('/app/')) {
+    e.respondWith(
+      fetch(req)
+        .then((res) => { if (res.ok) { const copy = res.clone(); caches.open(CACHE).then((c) => c.put(req, copy)); } return res; })
+        .catch(() => caches.match(req, { ignoreSearch: true }))
     );
     return;
   }
