@@ -1,7 +1,22 @@
 /* Shared styles for the super-admin panel (admin.html) and the company panel (company.html). */
 :root{
-  --bg:#F5F3EF; --ink:#242220; --ink-soft:#6B6560; --line:#DCD6CC; --card:#FFFFFF;
-  --tag:#D9550C; --ok:#4B6B4E; --warn:#B0451F; --muted:#EDE9E2;
+  /* AMAN brand tokens — mirror of public/index.html. Source of truth: AMAN design system. */
+  --brand-100:#D5F1FF; --brand-200:#AEDFFF; --brand-700:#0068AF; --brand-800:#00508E;
+  --brand-950:#01345A;
+  --surface-page:#F8FAFD; --surface-card:#FFFFFF; --surface-sunken:#EEF3F8;
+  --surface-brand:#01345A; --surface-brand-subtle:#ECF9FF;
+  --text-primary:#1A242D; --text-secondary:#535C65; --text-muted:#6B737B;
+  --text-on-action:#FFFFFF; --text-link:#0068AF;
+  --border-subtle:#E2E8EE; --border-default:#CDD5DC; --focus-ring:#0B81D0;
+  --action-primary:#0068AF; --action-primary-hover:#00508E; --action-danger:#A12724;
+  --success-50:#E6FAEA; --success-700:#007227;
+  --danger-50:#FFEDE9; --danger-100:#FFD9D2; --danger-700:#A12724;
+
+  /* legacy names kept so existing rules keep working */
+  --bg:var(--surface-page); --ink:var(--text-primary); --ink-soft:var(--text-secondary);
+  --line:var(--border-subtle); --card:var(--surface-card);
+  --tag:var(--action-primary); --ok:var(--success-700); --warn:var(--danger-700);
+  --muted:var(--surface-sunken);
 }
 *{box-sizing:border-box;}
 body{margin:0; background:var(--bg); color:var(--ink); font-family:'IBM Plex Sans Arabic',sans-serif; font-size:14px;}
@@ -15,10 +30,10 @@ h3{font-size:14.5px; margin:0;}
 .card{background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px; margin-bottom:18px;}
 .card-head{display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:12px; flex-wrap:wrap;}
 .btn{border:none; border-radius:10px; font-family:inherit; font-weight:600; font-size:14px; padding:10px 14px; cursor:pointer;}
-.btn-primary{background:var(--tag); color:#fff;}
-.btn-ghost{background:var(--card); color:var(--ink); border:1px solid var(--line);}
+.btn-primary{background:var(--action-primary); color:var(--text-on-action);}
+.btn-ghost{background:var(--surface-card); color:var(--text-primary); border:1px solid var(--border-default);}
 .btn-sm{padding:6px 10px; font-size:12.5px; border-radius:8px;}
-.btn-danger{background:none; color:var(--warn); border:1px solid #F0CDB9;}
+.btn-danger{background:none; color:var(--action-danger); border:1px solid var(--danger-100);}
 .btn:disabled{opacity:.5; cursor:default;}
 table{width:100%; border-collapse:collapse;}
 th,td{text-align:right; padding:10px 8px; border-bottom:1px solid var(--line); vertical-align:middle;}
@@ -26,8 +41,8 @@ th{font-size:12.5px; color:var(--ink-soft); font-weight:500;}
 tr:last-child td{border-bottom:none;}
 .table-wrap{overflow-x:auto;}
 .pill{display:inline-block; font-size:12px; padding:3px 9px; border-radius:999px; background:var(--muted); color:var(--ink-soft); white-space:nowrap;}
-.pill.ok{background:#E3ECE3; color:var(--ok);}
-.pill.bad{background:#FBEDE5; color:var(--warn);}
+.pill.ok{background:var(--success-50); color:var(--success-700);}
+.pill.bad{background:var(--danger-50); color:var(--danger-700);}
 .actions{display:flex; gap:6px; flex-wrap:wrap;}
 .empty{color:var(--ink-soft); padding:16px 0; text-align:center;}
 
@@ -85,3 +100,13 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--tag); outline-of
 .drop{border:2px dashed var(--line); border-radius:12px; padding:18px; text-align:center; color:var(--ink-soft); cursor:pointer; background:var(--card);}
 .drop:hover{border-color:var(--tag);}
 .hint{font-size:12.5px; color:var(--ink-soft); line-height:1.7;}
+
+/* --- AMAN brand bar (admin + company panels) --- */
+.brandbar{background:var(--surface-brand); color:#fff;}
+.brandbar .inner{max-width:1100px; margin:0 auto; padding:11px 16px; display:flex; align-items:center; gap:9px;}
+.brandbar svg{flex-shrink:0; display:block;}
+.brandbar .name{font-weight:700; font-size:16px; letter-spacing:.5px;}
+.brandbar .sep{opacity:.45;}
+.brandbar .ctx{font-size:14px; opacity:.9;}
+.login .login-mark{display:flex; flex-direction:column; align-items:center; gap:8px; margin-bottom:20px; color:var(--surface-brand);}
+.login .login-mark .name{font-weight:700; font-size:24px; letter-spacing:1px;}

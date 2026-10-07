@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>جرد الأصول</title>
-<meta name="theme-color" content="#F5F3EF">
+<meta name="theme-color" content="#01345A">
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="icon" href="/icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="/icon.svg">
@@ -14,17 +14,39 @@
 <script src="/vendor/xlsx.full.min.js"></script>
 <script src="/vendor/jszip.min.js"></script>
 <style>
+  /* ===== AMAN brand tokens — derived from the logo. Source of truth: AMAN design system. ===== */
   :root{
-    --bg:#F5F3EF;
-    --ink:#242220;
-    --ink-soft:#6B6560;
-    --line:#DCD6CC;
-    --card:#FFFFFF;
-    --tag:#D9550C;
-    --tag-ink:#FFFFFF;
-    --ok:#4B6B4E;
-    --warn:#B0451F;
-    --slot-empty:#EDE9E2;
+    /* brand ramp */
+    --brand-50:#ECF9FF;  --brand-100:#D5F1FF; --brand-200:#AEDFFF; --brand-300:#74C1FF;
+    --brand-600:#0B81D0; --brand-700:#0068AF; --brand-800:#00508E; --brand-900:#003F6E;
+    --brand-950:#01345A;
+    /* surfaces */
+    --surface-page:#F8FAFD; --surface-card:#FFFFFF; --surface-sunken:#EEF3F8;
+    --surface-brand:#01345A; --surface-brand-subtle:#ECF9FF;
+    /* text */
+    --text-primary:#1A242D; --text-secondary:#535C65; --text-muted:#6B737B;
+    --text-on-action:#FFFFFF; --text-link:#0068AF;
+    /* borders + focus */
+    --border-subtle:#E2E8EE; --border-default:#CDD5DC; --border-strong:#8A939D;
+    --focus-ring:#0B81D0;
+    /* actions */
+    --action-primary:#0068AF; --action-primary-hover:#00508E; --action-danger:#A12724;
+    /* status */
+    --success-50:#E6FAEA; --success-300:#6ED88F; --success-700:#007227;
+    --warning-50:#FFF1DB; --warning-300:#FFA800; --warning-700:#983C00;
+    --danger-50:#FFEDE9;  --danger-100:#FFD9D2; --danger-300:#FF978B; --danger-700:#A12724;
+
+    /* ---- legacy names kept so existing rules keep working ---- */
+    --bg:var(--surface-page);
+    --ink:var(--text-primary);
+    --ink-soft:var(--text-secondary);
+    --line:var(--border-subtle);
+    --card:var(--surface-card);
+    --tag:var(--brand-700);
+    --tag-ink:var(--text-on-action);
+    --ok:var(--success-700);
+    --warn:var(--danger-700);
+    --slot-empty:var(--surface-sunken);
   }
   *{box-sizing:border-box;}
   html,body{margin:0;padding:0;}
@@ -39,16 +61,25 @@
 
   header.topbar{
     position:sticky; top:0; z-index:20;
-    background:var(--bg);
-    border-bottom:1px solid var(--line);
-    padding:14px 16px 12px;
+    background:var(--surface-page);
+    border-bottom:1px solid var(--border-subtle);
+    padding:0 16px 12px;
   }
-  .topbar-row{display:flex; align-items:baseline; justify-content:space-between; gap:10px;}
-  .brand{font-size:19px; font-weight:700;}
+  .topbar-row{
+    background:var(--surface-brand); color:#fff;
+    margin:0 -16px 12px; padding:13px 16px;
+    display:flex; align-items:center; justify-content:space-between; gap:10px;
+  }
+  .topbar-row .icon-btn{color:#fff;}
+  .brand{font-size:17px; font-weight:600; display:flex; align-items:center; gap:9px; min-width:0;}
+  .brand-mark{flex-shrink:0; display:block;}
+  .brand-name{font-weight:700; letter-spacing:.5px;}
+  .brand-sep{opacity:.45; font-weight:400;}
   .count-pill{
-    font-size:13px; color:var(--ink-soft);
+    font-size:13px; color:rgba(255,255,255,.78);
+    background:rgba(255,255,255,.12); border-radius:999px; padding:3px 11px;
   }
-  .count-pill b{color:var(--ink); font-weight:600;}
+  .count-pill b{color:#fff; font-weight:600;}
   .search-row{margin-top:10px; display:flex; gap:8px;}
   .scan-btn{
     flex-shrink:0; width:46px; border:1px solid var(--line); background:var(--card); border-radius:10px;
@@ -76,13 +107,13 @@
     border:1px solid #555; background:#1c1c1c; color:#fff; border-radius:10px; padding:10px 14px;
     font-family:inherit; font-size:13.5px; font-weight:600; cursor:pointer;
   }
-  .scanner-controls button.primary{background:var(--tag); border-color:var(--tag);}
+  .scanner-controls button.primary{background:var(--action-primary); border-color:var(--action-primary); color:var(--text-on-action);}
   .scanner-controls button.on{background:#fff; color:#000;}
   .zoom-row{display:none; align-items:center; gap:8px; color:#ddd; font-size:12.5px; width:100%; justify-content:center;}
   .zoom-row input{width:55%;}
   #scanFileReader{display:none;}
   .install-card{
-    background:#FFF7F1; border:1px solid #F0CDB9; border-radius:12px; padding:12px; margin-bottom:12px;
+    background:var(--surface-brand-subtle); border:1px solid var(--danger-100); border-radius:12px; padding:12px; margin-bottom:12px;
     font-size:13px; line-height:1.7; display:none;
   }
   .install-card.show{display:block;}
@@ -91,7 +122,7 @@
   .install-actions button{
     border:none; border-radius:8px; padding:8px 12px; font-family:inherit; font-weight:600; font-size:13px; cursor:pointer;
   }
-  .install-actions .primary{background:var(--tag); color:#fff;}
+  .install-actions .primary{background:var(--action-primary); color:var(--text-on-action);}
   .install-actions .ghost{background:transparent; color:var(--ink-soft); border:1px solid var(--line);}
   .backup-note{font-size:12px; color:var(--ink-soft); line-height:1.6; margin-top:10px;}
   .search-input{
@@ -99,7 +130,7 @@
     border-radius:10px; padding:10px 12px; font-size:14px; font-family:inherit;
     color:var(--ink);
   }
-  .search-input:focus{outline:2px solid var(--tag); outline-offset:1px;}
+  .search-input:focus{outline:2px solid var(--focus-ring); outline-offset:1px;}
 
   .location-bar{
     margin-top:10px; background:var(--card); border:1px solid var(--line); border-radius:10px;
@@ -109,7 +140,7 @@
   .location-bar .loc-text b{font-family:'IBM Plex Mono', monospace; color:var(--tag);}
   .location-bar .loc-empty{color:var(--ink-soft);}
   .location-bar button{
-    flex-shrink:0; background:var(--ink); color:var(--bg); border:none; border-radius:8px;
+    flex-shrink:0; background:var(--action-primary); color:var(--text-on-action); border:none; border-radius:8px;
     padding:7px 12px; font-size:12.5px; font-family:inherit; font-weight:600; cursor:pointer;
   }
 
@@ -145,8 +176,8 @@
     border:none; border-radius:12px; font-family:inherit; font-weight:600;
     font-size:15px; padding:14px 16px; cursor:pointer;
   }
-  .btn-primary{background:var(--tag); color:var(--tag-ink); flex:1;}
-  .btn-secondary{background:var(--card); color:var(--ink); border:1px solid var(--line);}
+  .btn-primary{background:var(--action-primary); color:var(--text-on-action); flex:1;}
+  .btn-secondary{background:var(--surface-card); color:var(--text-primary); border:1px solid var(--border-default);}
   .btn-block{width:100%;}
   .btn:active{transform:scale(0.98);}
 
@@ -174,7 +205,7 @@
     border-radius:10px; padding:12px; font-size:15px; font-family:inherit; color:var(--ink);
   }
   .field input[type=text]:focus, .field textarea:focus, .field select:focus{
-    outline:2px solid var(--tag); outline-offset:1px;
+    outline:2px solid var(--focus-ring); outline-offset:1px;
   }
   .field textarea{resize:vertical; min-height:70px;}
   .field textarea.desc-box{min-height:52px; resize:none; overflow:hidden; line-height:1.6;}
@@ -187,8 +218,8 @@
   }
   .field.invalid > label, .two-col > div.invalid > label{color:var(--warn);}
   .asset-card.flagged{opacity:.6; border-style:dashed;}
-  .flag-badge{display:inline-block; font-size:11.5px; font-weight:600; color:var(--warn); background:#FBEDE5; border-radius:999px; padding:1px 8px; margin-inline-start:6px;}
-  .flag-note{background:#FBEDE5; border:1px solid #F0CDB9; color:var(--warn); border-radius:10px; padding:10px 12px; font-size:13px; line-height:1.6; margin-bottom:16px; display:none;}
+  .flag-badge{display:inline-block; font-size:11.5px; font-weight:600; color:var(--warn); background:var(--danger-50); border-radius:999px; padding:1px 8px; margin-inline-start:6px;}
+  .flag-note{background:var(--danger-50); border:1px solid var(--danger-100); color:var(--warn); border-radius:10px; padding:10px 12px; font-size:13px; line-height:1.6; margin-bottom:16px; display:none;}
   .flag-note.show{display:block;}
   .tag-input-row{display:flex; gap:8px;}
   .tag-input-row input{flex:1;}
@@ -202,7 +233,7 @@
     border:1px solid var(--line); background:var(--card); border-radius:999px;
     padding:9px 16px; font-size:13.5px; cursor:pointer; color:var(--ink-soft); font-family:inherit;
   }
-  .chip.active{background:var(--ink); color:var(--bg); border-color:var(--ink);}
+  .chip.active{background:var(--action-primary); color:var(--text-on-action); border-color:var(--action-primary);}
 
   .photo-grid{display:grid; grid-template-columns:repeat(4, 1fr); gap:8px;}
   .photo-slot{
@@ -251,7 +282,7 @@
   /* Toast */
   .toast{
     position:fixed; bottom:100px; left:50%; transform:translateX(-50%);
-    background:var(--ink); color:var(--bg); padding:11px 18px; border-radius:10px;
+    background:var(--action-primary); color:var(--text-on-action); padding:11px 18px; border-radius:10px;
     font-size:13.5px; z-index:500; opacity:0; transition:opacity 0.25s; pointer-events:none;
     width:max-content; max-width:calc(100% - 32px); text-align:center; line-height:1.6;
   }
@@ -268,31 +299,38 @@
 
   /* Login */
   .login-screen{
-    position:fixed; inset:0; z-index:500; background:var(--bg);
-    display:flex; align-items:center; justify-content:center; padding:24px 16px;
+    position:fixed; inset:0; z-index:500; background:var(--surface-brand);
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    padding:24px 16px; gap:28px;
   }
   .login-screen.hidden{display:none;}
-  .login-box{width:100%; max-width:380px;}
-  .login-title{font-size:24px; font-weight:700; margin-bottom:4px;}
-  .login-sub{font-size:13.5px; color:var(--ink-soft); margin-bottom:24px; line-height:1.6;}
+  .login-mark{display:flex; flex-direction:column; align-items:center; gap:10px; color:#fff;}
+  .login-mark .wordmark{font-size:30px; font-weight:700; letter-spacing:1.5px; line-height:1;}
+  .login-mark .tagline{font-size:13px; color:rgba(255,255,255,.72); line-height:1.6; text-align:center;}
+  .login-box{
+    width:100%; max-width:380px; background:var(--surface-card);
+    border-radius:16px; padding:24px 20px; box-shadow:0 12px 32px rgba(1,52,90,.28);
+  }
+  .login-title{font-size:21px; font-weight:600; margin-bottom:4px;}
+  .login-sub{font-size:13px; color:var(--text-secondary); margin-bottom:22px; line-height:1.6;}
   .login-box input{
     width:100%; border:1px solid var(--line); background:var(--card); border-radius:10px;
     padding:13px 12px; font-size:15px; font-family:inherit; color:var(--ink);
   }
-  .login-box input:focus{outline:2px solid var(--tag); outline-offset:1px;}
+  .login-box input:focus{outline:2px solid var(--focus-ring); outline-offset:1px;}
   .login-err{color:var(--warn); font-size:13.5px; min-height:20px; margin:4px 0 12px; line-height:1.6;}
   .login-foot{font-size:12px; color:var(--ink-soft); margin-top:18px; text-align:center; line-height:1.6;}
   .booting .login-box{visibility:hidden;}
 
   .lic-banner{
     margin-top:10px; border-radius:10px; padding:9px 12px; font-size:12.5px; line-height:1.6;
-    background:#FBEDE5; color:var(--warn); border:1px solid #F0CDB9; display:none;
+    background:var(--danger-50); color:var(--warn); border:1px solid var(--danger-100); display:none;
   }
   .lic-banner.show{display:block;}
   .sync-pill{border:1px solid var(--line); background:var(--card); color:var(--ink-soft); border-radius:999px; padding:5px 10px; font-family:inherit; font-size:12px; cursor:pointer; white-space:nowrap;}
-  .sync-pill.ok{color:var(--ok); border-color:#C9D9CA;}
-  .sync-pill.busy{color:var(--tag); border-color:#F0CDB9;}
-  .sync-pill.err{color:var(--warn); border-color:#F0CDB9; background:#FBEDE5;}
+  .sync-pill.ok{color:var(--ok); border-color:var(--success-300);}
+  .sync-pill.busy{color:var(--brand-700); border-color:var(--brand-200);}
+  .sync-pill.err{color:var(--warn); border-color:var(--danger-100); background:var(--danger-50);}
   .sync-dot{display:inline-block; font-size:11px; color:var(--tag); margin-inline-start:6px;}
   .info-row{display:flex; justify-content:space-between; gap:10px; padding:11px 0; border-bottom:1px solid var(--line); font-size:14px;}
   .info-row span:first-child{color:var(--ink-soft);}
@@ -302,8 +340,13 @@
 <body>
 
 <div class="login-screen booting" id="loginScreen">
+  <div class="login-mark">
+    <svg width="64" height="59" viewBox="726.8 240.3 190.4 174.5" fill="#fff" aria-hidden="true"><path fill-rule="evenodd" d="M852.75 357.94 L874.10 410.74 L913.26 410.74 L881.42 336.71 L874.01 342.97 L866.94 348.43 L859.86 353.41 Z M789.60 369.80 L792.61 371.92 L796.01 373.19 L799.22 373.60 L803.02 373.35 L811.38 371.87 L819.28 369.85 L827.18 367.24 L835.08 364.03 L842.05 360.70 L848.55 357.16 L855.52 352.92 L862.02 348.53 L868.99 343.36 L875.50 338.11 L882.00 332.45 L888.51 326.36 L888.90 326.58 L901.40 339.20 L901.65 339.14 L912.59 279.84 L855.88 296.72 L855.78 296.96 L869.78 309.58 L861.10 317.38 L851.91 324.73 L843.19 330.90 L834.01 336.53 L825.28 341.08 L816.10 345.01 L806.92 348.09 L802.32 349.30 L798.15 350.15 L797.79 350.46 Z M802.13 244.29 L730.97 409.74 L730.84 410.74 L769.70 410.74 L821.90 281.77 L841.02 328.97 L847.07 324.82 L853.40 320.06 L859.74 314.86 L865.65 309.63 L853.91 299.04 L853.13 297.86 L852.98 296.99 L853.12 296.11 L853.52 295.21 L854.27 294.43 L855.08 294.03 L862.16 291.92 L841.92 244.88 L840.92 244.29 Z"/></svg>
+    <div class="wordmark">AMAN</div>
+    <div class="tagline">نظام إدارة وتتبّع الأصول<br>الجرد الميداني</div>
+  </div>
   <form class="login-box" id="loginForm" autocomplete="on">
-    <div class="login-title">جرد الأصول</div>
+    <div class="login-title">تسجيل الدخول</div>
     <div class="login-sub">سجّل الدخول بالحساب الذي زوّدك به المزوّد. تحتاج اتصالًا بالإنترنت عند أول دخول فقط، ثم يعمل التطبيق دون اتصال.</div>
     <div class="field">
       <label for="lg_user">اسم المستخدم</label>
@@ -321,7 +364,7 @@
 
 <header class="topbar">
   <div class="topbar-row">
-    <div class="brand">جرد الأصول</div>
+    <div class="brand"><svg class="brand-mark" width="22" height="20" viewBox="726.8 240.3 190.4 174.5" fill="#fff" aria-hidden="true"><path fill-rule="evenodd" d="M852.75 357.94 L874.10 410.74 L913.26 410.74 L881.42 336.71 L874.01 342.97 L866.94 348.43 L859.86 353.41 Z M789.60 369.80 L792.61 371.92 L796.01 373.19 L799.22 373.60 L803.02 373.35 L811.38 371.87 L819.28 369.85 L827.18 367.24 L835.08 364.03 L842.05 360.70 L848.55 357.16 L855.52 352.92 L862.02 348.53 L868.99 343.36 L875.50 338.11 L882.00 332.45 L888.51 326.36 L888.90 326.58 L901.40 339.20 L901.65 339.14 L912.59 279.84 L855.88 296.72 L855.78 296.96 L869.78 309.58 L861.10 317.38 L851.91 324.73 L843.19 330.90 L834.01 336.53 L825.28 341.08 L816.10 345.01 L806.92 348.09 L802.32 349.30 L798.15 350.15 L797.79 350.46 Z M802.13 244.29 L730.97 409.74 L730.84 410.74 L769.70 410.74 L821.90 281.77 L841.02 328.97 L847.07 324.82 L853.40 320.06 L859.74 314.86 L865.65 309.63 L853.91 299.04 L853.13 297.86 L852.98 296.99 L853.12 296.11 L853.52 295.21 L854.27 294.43 L855.08 294.03 L862.16 291.92 L841.92 244.88 L840.92 244.29 Z"/></svg><span class="brand-name">AMAN</span><span class="brand-sep">·</span><span>جرد الأصول</span></div>
     <div style="display:flex; align-items:center; gap:10px;">
       <div class="count-pill"><b id="assetCount">0</b> أصل مسجّل<span id="flaggedCount"></span></div>
       <button class="sync-pill" id="syncPill" hidden title="المزامنة مع الخادم"></button>
@@ -1004,7 +1047,7 @@ function buildCategoryOptions(){
   $('subcatPick').hidden = !has;
   ['f_catcode', 'f_subcat', 'f_subcatcode'].forEach(id=>{
     $(id).readOnly = has;
-    $(id).style.background = has ? 'var(--muted, #EDE9E2)' : '';
+    $(id).style.background = has ? 'var(--surface-sunken)' : '';
   });
   // A required sub-category is checked on the visible picker when a list exists.
   FIELD_DEFS.subcat = has ? ['f_subcatSel', 'الفئة الفرعية', false] : ['f_subcat', 'الفئة الفرعية', true];
