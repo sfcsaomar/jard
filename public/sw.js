@@ -1,10 +1,13 @@
 // Offline support: the app shell and libraries are cached so the app opens without internet.
-const CACHE = 'asset-inv-v7';
+const CACHE = 'asset-inv-v8';
 const SHELL = [
   '/',
   '/index.html',
   '/manifest.webmanifest',
   '/icon.svg',
+  '/icon-192.png',
+  '/brand/aman-wordmark-on-dark.svg',
+  '/brand/aman-logo-on-dark.svg',
   '/vendor/xlsx.full.min.js',
   '/vendor/jszip.min.js',
   '/vendor/html5-qrcode.min.js'

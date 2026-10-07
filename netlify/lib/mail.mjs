@@ -9,29 +9,37 @@ export const mailEnabled = () => (process.env.RESEND_API_KEY || '').length > 10;
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
+// AMAN identity v2: navy header with the wordmark, blue button, cool greys. Email clients ignore SVG,
+// so the header logo is a PNG served from the app.
+const C = { navy: '#01345A', accent: '#0068AF', page: '#F8FAFD', card: '#FFFFFF', line: '#E2E8EE', ink: '#1A242D', ink2: '#535C65', faint: '#626A72' };
+
 function layout({ titleAr, titleEn, bodyAr, bodyEn, button, url, footAr, footEn }) {
   const btn = (label) => url
-    ? `<p style="margin:22px 0"><a href="${esc(url)}" style="background:#D9550C;color:#fff;text-decoration:none;padding:12px 22px;border-radius:10px;font-weight:600;display:inline-block">${esc(label)}</a></p>`
+    ? `<p style="margin:22px 0"><a href="${esc(url)}" style="background:${C.accent};color:#fff;text-decoration:none;padding:12px 22px;border-radius:10px;font-weight:600;display:inline-block">${esc(label)}</a></p>`
     : '';
-  const link = url ? `<p style="font-size:12px;color:#6B6560;word-break:break-all">${esc(url)}</p>` : '';
-  return `<!doctype html><html><body style="margin:0;background:#F5F3EF;font-family:Tahoma,Arial,sans-serif;color:#242220">
+  const link = url ? `<p style="font-size:12px;color:${C.faint};word-break:break-all">${esc(url)}</p>` : '';
+  return `<!doctype html><html><body style="margin:0;background:${C.page};font-family:Tahoma,Arial,sans-serif;color:${C.ink}">
 <div style="max-width:560px;margin:0 auto;padding:24px 16px">
- <div style="background:#fff;border:1px solid #DCD6CC;border-radius:14px;padding:24px" dir="rtl" align="right">
-  <div style="font-size:13px;color:#6B6560;margin-bottom:6px">أمان · الجرد الميداني</div>
-  <h2 style="margin:0 0 12px;font-size:20px">${esc(titleAr)}</h2>
+ <div style="background:${C.navy};border-radius:14px 14px 0 0;padding:18px 24px" align="center">
+  <img src="${APP_URL()}/brand/aman-wordmark-email.png" width="109" height="24" alt="AMAN" style="display:block;border:0;height:24px;width:109px">
+ </div>
+ <div style="height:3px;line-height:3px;font-size:0;background:${C.accent};background-image:linear-gradient(90deg,#0068AF,#0B81D0,#329FF5)">&nbsp;</div>
+ <div style="background:${C.card};border:1px solid ${C.line};border-top:none;border-radius:0 0 14px 14px;padding:24px" dir="rtl" align="right">
+  <div style="font-size:13px;color:${C.faint};margin-bottom:6px">أمان · الجرد الميداني</div>
+  <h2 style="margin:0 0 12px;font-size:20px;color:${C.navy}">${esc(titleAr)}</h2>
   <div style="font-size:15px;line-height:1.8">${bodyAr}</div>
   ${btn(button?.[0])}
-  ${footAr ? `<p style="font-size:13px;color:#6B6560;line-height:1.7">${footAr}</p>` : ''}
+  ${footAr ? `<p style="font-size:13px;color:${C.ink2};line-height:1.7">${footAr}</p>` : ''}
  </div>
- <div style="background:#fff;border:1px solid #DCD6CC;border-radius:14px;padding:24px;margin-top:12px" dir="ltr" align="left">
-  <div style="font-size:13px;color:#6B6560;margin-bottom:6px">AMAN · Field Inventory</div>
-  <h2 style="margin:0 0 12px;font-size:18px">${esc(titleEn)}</h2>
+ <div style="background:${C.card};border:1px solid ${C.line};border-radius:14px;padding:24px;margin-top:12px" dir="ltr" align="left">
+  <div style="font-size:13px;color:${C.faint};margin-bottom:6px">AMAN · Field Inventory</div>
+  <h2 style="margin:0 0 12px;font-size:18px;color:${C.navy}">${esc(titleEn)}</h2>
   <div style="font-size:14px;line-height:1.7">${bodyEn}</div>
   ${btn(button?.[1])}
-  ${footEn ? `<p style="font-size:12px;color:#6B6560;line-height:1.6">${footEn}</p>` : ''}
+  ${footEn ? `<p style="font-size:12px;color:${C.ink2};line-height:1.6">${footEn}</p>` : ''}
   ${link}
  </div>
- <p style="font-size:11px;color:#9A938B;text-align:center;margin-top:14px">support@amantrack.com</p>
+ <p style="font-size:11px;color:${C.faint};text-align:center;margin-top:14px">AMAN · amantrack.com · support@amantrack.com</p>
 </div></body></html>`;
 }
 

@@ -4,15 +4,19 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="robots" content="noindex, nofollow">
-<title>لوحة الشركة</title>
+<title>AMAN · لوحة الشركة</title>
 <link rel="icon" href="/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<meta name="theme-color" content="#01345A">
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/panel.css">
 </head>
 <body>
 
 <div class="login" id="loginView">
-  <h1>لوحة الشركة</h1>
+ <div class="login-brand"><img src="/brand/aman-logo-on-dark.svg" alt="AMAN"><div class="ctx">لوحة الشركة</div></div>
+ <div class="login-card">
+  <h2>تسجيل الدخول</h2>
   <p class="sub">إدارة مشاريع الجرد والمستخدمين والأجهزة. ادخل بحساب مدير الشركة الذي استلمته من المزوّد.</p>
   <form id="loginForm">
     <input id="lg_user" dir="ltr" autocapitalize="none" autocomplete="username" placeholder="اسم المستخدم">
@@ -20,10 +24,13 @@
     <div class="form-err" id="loginErr"></div>
     <button class="btn btn-primary" style="width:100%" type="submit" id="loginBtn">دخول</button>
   </form>
-  <p style="text-align:center; margin-top:14px; font-size:13px"><a href="/account" style="color:var(--tag)">نسيت كلمة المرور؟</a></p>
+  <p style="text-align:center; margin-top:14px; font-size:13px"><a href="/account">نسيت كلمة المرور؟</a></p>
+ </div>
 </div>
 
-<div class="wrap" id="appView" style="display:none">
+<div id="appView" style="display:none">
+<div class="brandbar"><div class="inner"><img src="/brand/aman-wordmark-on-dark.svg" alt="AMAN"><span class="sep"></span><span class="ctx">لوحة الشركة</span></div></div>
+<div class="wrap">
   <header>
     <div>
       <h1 id="coName">—</h1>
@@ -155,6 +162,7 @@
       </form>
     </div>
   </section>
+</div>
 </div>
 
 <!-- Project modal -->
@@ -673,7 +681,9 @@ document.addEventListener('click', async (e)=>{
 const PAGE = 50;
 const inv = {projectId: '', offset: 0, total: 0, rows: [], q: '', stats: null, seq: 0};
 const CONDITION_AR = {'Good':'جيد','New':'جديد','Fair':'متوسط','Needs Maintenance':'يحتاج صيانة'};
-const fmtTime = (iso)=> iso ? esc(new Date(iso).toLocaleString('en-GB', {dateStyle:'short', timeStyle:'short'})) : '—';
+// Dates as 2026-10-07 14:05 (identity: Latin digits, ISO order).
+const isoTime = (d)=> { const x = new Date(d); return isNaN(x) ? '' : new Date(x - x.getTimezoneOffset()*60000).toISOString().slice(0,16).replace('T',' '); };
+const fmtTime = (iso)=> iso ? esc(isoTime(iso)) : '—';
 
 function renderInventoryShell(){
   $('invOff').hidden = !!data.sync;
@@ -742,7 +752,7 @@ $('invBody').addEventListener('click', (e)=>{
 async function openAsset(a){
   const x = a.data || {};
   $('am_tag').textContent = a.tag || '—';
-  $('am_sub').textContent = `${a.username} · رُفع ${a.syncedAt ? new Date(a.syncedAt).toLocaleString('en-GB') : '—'}`;
+  $('am_sub').textContent = `${a.username} · رُفع ${a.syncedAt ? isoTime(a.syncedAt) : '—'}`;
   const rows = [
     ['الوصف', x.name], ['الفئة', [x.catCode, x.category].filter(Boolean).join(' · ')],
     ['الفئة الفرعية', [x.subCategoryCode, x.subCategory].filter(Boolean).join(' · ')],

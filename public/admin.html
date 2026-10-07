@@ -4,30 +4,37 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="robots" content="noindex, nofollow">
-<title>إدارة التراخيص</title>
+<title>AMAN · لوحة المزوّد</title>
 <link rel="icon" href="/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<meta name="theme-color" content="#01345A">
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/panel.css">
 </head>
 <body>
 
 <div class="login" id="loginView">
-  <h1>إدارة التراخيص</h1>
-  <p class="sub">لوحة المزوّد. ادخل باسم المستخدم وكلمة المرور.</p>
+ <div class="login-brand"><img src="/brand/aman-logo-on-dark.svg" alt="AMAN"><div class="ctx">لوحة المزوّد · إدارة التراخيص</div></div>
+ <div class="login-card">
+  <h2>تسجيل الدخول</h2>
+  <p class="sub">ادخل باسم المستخدم وكلمة المرور.</p>
   <form id="loginForm">
     <input id="adminUser" dir="ltr" autocapitalize="none" autocomplete="username" placeholder="اسم المستخدم">
     <input type="password" id="adminPass" autocomplete="current-password" dir="ltr" placeholder="كلمة المرور">
     <div class="form-err" id="loginErr"></div>
     <button class="btn btn-primary" style="width:100%" type="submit">دخول</button>
   </form>
-  <p style="text-align:center; margin-top:12px; font-size:13px"><a href="/account" style="color:var(--tag)">نسيت كلمة المرور؟</a></p>
+  <p style="text-align:center; margin-top:12px; font-size:13px"><a href="/account">نسيت كلمة المرور؟</a></p>
   <p class="hint" style="margin-top:16px">
     <b>دخول الطوارئ:</b> اترك اسم المستخدم فارغًا، واكتب كلمة المرور المحفوظة في Netlify باسم <span class="mono">ADMIN_PASSWORD</span>.
     استخدمه لإنشاء أول حساب، أو إذا نسيت كلمة مرورك.
   </p>
+ </div>
 </div>
 
-<div class="wrap" id="appView" style="display:none">
+<div id="appView" style="display:none">
+<div class="brandbar"><div class="inner"><img src="/brand/aman-wordmark-on-dark.svg" alt="AMAN"><span class="sep"></span><span class="ctx">لوحة المزوّد</span></div></div>
+<div class="wrap">
   <header>
     <div>
       <h1>إدارة التراخيص</h1>
@@ -40,7 +47,7 @@
     </div>
   </header>
 
-  <div class="card" id="noticeCard" hidden style="border-color:#F0CDB9; background:#FBEDE5;"></div>
+  <div class="card" id="noticeCard" hidden style="border-color:var(--bad-line); background:var(--bad-bg);"></div>
   <div class="card" id="storageCard" hidden>
     <div class="card-head" style="margin-bottom:6px">
       <h2>تخزين الصور</h2>
@@ -49,7 +56,7 @@
     <div class="sub" id="storageText"></div>
     <div class="bar" style="height:8px"><i id="storageBar" style="width:0"></i></div>
   </div>
-  <div class="card" id="emgCard" hidden style="border-color:#F0CDB9; background:#FBEDE5;">
+  <div class="card" id="emgCard" hidden style="border-color:var(--bad-line); background:var(--bad-bg);">
     <b>أنت داخل بكلمة الطوارئ.</b>
     <span class="sub" style="color:var(--warn)">أنشئ حسابًا باسمك من «حسابات المزوّد» بالأسفل، ثم ادخل به. كلمة الطوارئ تبقى للاستعادة فقط.</span>
   </div>
@@ -82,6 +89,7 @@
       <tbody id="superBody"></tbody>
     </table></div>
   </div>
+</div>
 </div>
 
 <!-- Provider admin modal -->

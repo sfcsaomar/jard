@@ -1,14 +1,31 @@
 {
-  "name": "جرد الأصول",
-  "short_name": "جرد الأصول",
+  "name": "AMAN — الجرد الميداني",
+  "short_name": "AMAN جرد",
   "lang": "ar",
   "dir": "rtl",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
-  "background_color": "#F5F3EF",
-  "theme_color": "#F5F3EF",
+  "background_color": "#01345A",
+  "theme_color": "#01345A",
   "icons": [
-    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
   ]
 }
