@@ -23,7 +23,10 @@ jobs:
           cache: npm
       - run: npm ci
       - name: Install the test browser
-        run: npx playwright install --with-deps chromium
+        timeout-minutes: 8
+        # System packages come from apt, which is sometimes slow; the runner image already has most of
+        # them, so fall back to installing only the browser if the full install stalls.
+        run: timeout 300 npx playwright install --with-deps chromium || npx playwright install chromium
       - name: Database, server and file checks
         run: npm run test:server
       - name: Browser test (panels, phone app, offline)
