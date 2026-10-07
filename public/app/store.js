@@ -97,9 +97,9 @@ let currentLabel = null; // nameplate photo (Blob)
 const $ = (id)=> document.getElementById(id);
 
 function toast(msg){
-  const t = $('toast');
-  t.textContent = msg;
-  t.classList.add('show');
+  const el = $('toast');
+  el.textContent = msg;
+  el.classList.add('show');
   clearTimeout(toast._t);
-  toast._t = setTimeout(()=> t.classList.remove('show'), Math.max(1800, String(msg).length * 55));
+  toast._t = setTimeout(()=> el.classList.remove('show'), Math.max(1800, String(msg).length * 55));
 }

@@ -86,7 +86,8 @@ ok(Object.entries({ ...AR, ...EN }).every(([, v]) => String(v).trim()), 'no empt
 ok(!/[\u0600-\u06FF]/.test(Object.values(EN).join(' ')), 'English texts contain no Arabic letters');
 
 // Every key the converted pages use exists. Converted = fully bilingual; Arabic text inside them is a bug.
-const BILINGUAL = ['admin.html', 'panel/admin.js', 'company.html', 'panel/company.js', 'panel/charts.js', 'panel/common.js', 'i18n/i18n.js'];
+const BILINGUAL = ['admin.html', 'panel/admin.js', 'company.html', 'panel/company.js', 'panel/charts.js', 'panel/common.js', 'i18n/i18n.js',
+  'index.html', 'account.html', 'panel/account.js', ...fs.readdirSync(path.join(PUB, 'app')).filter((f) => f.endsWith('.js')).map((f) => 'app/' + f)];
 const used = new Set();
 for (const f of BILINGUAL) {
   const src = read(f);

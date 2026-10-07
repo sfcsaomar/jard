@@ -4,13 +4,13 @@
 // ---------- Barcode / QR scanner ----------
 // Live camera scan with a wide target box, high resolution, continuous focus, torch and zoom.
 // 1D barcodes must be read twice in a row before they are accepted (guards against misreads).
-// If live scanning struggles, "صوّر الباركود" takes a full-resolution photo and decodes that,
+// If live scanning struggles, "Photograph the barcode" takes a full-resolution photo and decodes that,
 // and if that also fails the AI reads the printed number (user confirms it).
 let scanner = null;
 let scanCallback = null;
 let lastRead = {value:'', at:0};
 let torchOn = false;
-const SCAN_HINT = 'ضع الباركود داخل الإطار على بُعد 15-25 سم وأبقِ الهاتف ثابتًا. إن لم يُقرأ خلال ثوانٍ، اضغط «صوّر الباركود».';
+const SCAN_HINT = t('app.scan.hint');
 
 function loadScript(src){
   return new Promise((resolve, reject)=>{
@@ -69,7 +69,7 @@ $('torchBtn').addEventListener('click', async ()=>{
     await track.applyConstraints({advanced:[{torch:!torchOn}]});
     torchOn = !torchOn;
     $('torchBtn').classList.toggle('on', torchOn);
-  }catch{ toast('الفلاش غير مدعوم على هذا الجهاز'); }
+  }catch{ toast(t('app.scan.noTorch')); }
 });
 
 async function openScanner(onResult){
@@ -78,7 +78,7 @@ async function openScanner(onResult){
   try{
     await loadScript('/vendor/html5-qrcode.min.js');
   }catch{
-    toast('تعذّر تحميل الماسح. افتح التطبيق مرة مع الإنترنت');
+    toast(t('app.scan.noLib'));
     return;
   }
   $('scanner').classList.add('open');
@@ -106,7 +106,7 @@ async function openScanner(onResult){
     }catch(err){
       console.error(err);
       await stopLiveScan();
-      $('scanHint').textContent = 'تعذّر فتح الكاميرا المباشرة (تأكد من السماح باستخدامها). يمكنك تصوير الباركود بالزر أدناه.';
+      $('scanHint').textContent = t('app.scan.noCamera');
       return;
     }
   }
@@ -198,24 +198,24 @@ $('scanPhotoInput').addEventListener('change', async (e)=>{
   await stopLiveScan();
   const btn = $('scanPhotoBtn');
   btn.disabled = true;
-  $('scanHint').textContent = 'جارٍ قراءة الصورة...';
+  $('scanHint').textContent = t('app.scan.reading');
   try{
     const code = await decodePhoto(file);
     if(code){ deliverScan(code); return; }
     const aiOn = !!(session && session.license.aiEnabled);
     if(aiOn && navigator.onLine){
-      $('scanHint').textContent = 'لم يُقرأ الباركود، جارٍ قراءة الرقم المطبوع بالذكاء الاصطناعي...';
+      $('scanHint').textContent = t('app.scan.aiReading');
       const image = await resizeForAI(file, 1600, 0.85);
       const r = await api('/api/ai-describe', {image, mediaType:'image/jpeg', mode:'scan'}, session.token);
       if(HARD_FAIL.includes(r.code)){ await closeScanner(); await doLogout(r.message); return; }
       if(r.ok && r.code){
-        if(confirm(`قرأ الذكاء الاصطناعي الرقم:\n${r.code}\nهل هو مطابق للملصق؟`)){ deliverScan(r.code); return; }
+        if(confirm(t('app.scan.aiConfirm', {code: r.code}))){ deliverScan(r.code); return; }
       } else if(!r.ok && r.message){ toast(r.message); }
     }
-    $('scanHint').textContent = 'لم يُقرأ الباركود. صوّره مرة أخرى عن قرب، بإضاءة جيدة، وبحيث يملأ الباركود معظم الصورة. أو أغلق الماسح واكتب الرقم يدويًا.';
+    $('scanHint').textContent = t('app.scan.notRead');
   }catch(err){
     console.error(err);
-    $('scanHint').textContent = 'تعذّرت قراءة الصورة. حاول مرة أخرى أو اكتب الرقم يدويًا.';
+    $('scanHint').textContent = t('app.scan.photoFailed');
   }finally{
     btn.disabled = false;
   }
@@ -225,14 +225,14 @@ $('closeScanBtn').addEventListener('click', ()=>{ scanCallback = null; closeScan
 $('scanTagBtn').addEventListener('click', ()=> openScanner((code)=>{
   $('f_tag').value = code;
   checkDuplicate();
-  toast('تمت قراءة الباركود');
+  toast(t('app.scan.done'));
 }));
 
 $('scanSearchBtn').addEventListener('click', ()=> openScanner(async (code)=>{
   const same = assets.filter(a => normTag(a.tag) === normTag(code));
   const found = same.find(a=> !isFlagged(a)) || same[0];
   if(found){ openForm(found.id); return; }
-  if(confirm(`الرقم ${code} غير مسجّل. إضافة أصل جديد بهذا الرقم؟`)){
+  if(confirm(t('app.scan.newConfirm', {code}))){
     await openForm(null);
     $('f_tag').value = code;
     checkDuplicate();

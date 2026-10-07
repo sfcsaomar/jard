@@ -23,12 +23,19 @@ function t(key, vars){
   if(vars) s = s.replace(/\{(\w+)\}/g, (m, k)=> vars[k] ?? m);
   return s;
 }
+// Each element is filled once, so a page script that already changed it (or applied the texts
+// early) is not overwritten when the page finishes loading.
 function applyI18n(root){
   const r = root || document;
-  r.querySelectorAll('[data-i18n]').forEach(el=>{ el.textContent = t(el.dataset.i18n); });
-  r.querySelectorAll('[data-i18n-html]').forEach(el=>{ el.innerHTML = t(el.dataset.i18nHtml); });
-  r.querySelectorAll('[data-i18n-ph]').forEach(el=>{ el.placeholder = t(el.dataset.i18nPh); });
-  r.querySelectorAll('[data-i18n-title]').forEach(el=>{ el.title = t(el.dataset.i18nTitle); el.setAttribute('aria-label', el.title); });
+  const each = (attr, fn)=> r.querySelectorAll(`[data-${attr}]`).forEach(el=>{
+    const flag = 'done' + attr.replace(/-/g, '');
+    if(el.dataset[flag]) return;
+    fn(el); el.dataset[flag] = '1';
+  });
+  each('i18n', el=>{ el.textContent = t(el.dataset.i18n); });
+  each('i18n-html', el=>{ el.innerHTML = t(el.dataset.i18nHtml); });
+  each('i18n-ph', el=>{ el.placeholder = t(el.dataset.i18nPh); });
+  each('i18n-title', el=>{ el.title = t(el.dataset.i18nTitle); el.setAttribute('aria-label', el.title); });
 }
 function setLang(l){
   try{ localStorage.setItem(LANG_KEY, l); }catch{}

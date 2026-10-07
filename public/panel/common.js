@@ -2,7 +2,7 @@
 // and the account page (account.html). Loaded before each page's own script; needs i18n/i18n.js.
 const $ = (id)=> document.getElementById(id);
 const esc = (s)=> String(s ?? '').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-function toast(m){ const t=$('toast'); t.textContent=m; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),2600); }
+function toast(m){ const el=$('toast'); el.textContent=m; el.classList.add('show'); setTimeout(()=>el.classList.remove('show'),2600); }
 
 // ---------- dates (Latin digits, 2026-10-07) ----------
 const fmt = (iso)=> iso ? esc(iso.slice(0,10)) : '—';

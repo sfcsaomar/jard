@@ -20,7 +20,7 @@ function buildCategoryOptions(){
   if(sig !== catsSig){
     const keepCat = $('f_category').value, keepSub = $('f_subcat').value;
     catsSig = sig;
-    $('f_category').innerHTML = '<option value="">اختر الفئة</option>' +
+    $('f_category').innerHTML = `<option value="">${escapeHtml(t('app.cat.pick'))}</option>` +
       (has ? cats.map(c=> optionHtml(c.name, c.code)) : DEFAULT_CATS.map(n=> optionHtml(n, ''))).join('');
     setCategoryValue(keepCat, keepSub);
   }
@@ -30,7 +30,7 @@ function buildCategoryOptions(){
     $(id).style.background = has ? 'var(--muted)' : '';
   });
   // A required sub-category is checked on the visible picker when a list exists.
-  FIELD_DEFS.subcat = has ? ['f_subcatSel', 'الفئة الفرعية', false] : ['f_subcat', 'الفئة الفرعية', true];
+  FIELD_DEFS.subcat = has ? ['f_subcatSel', t('co.f.subcat'), false] : ['f_subcat', t('co.f.subcat'), true];
 }
 // Keeps values that are not in the list (assets saved before the list was imported) selectable.
 function ensureOption(sel, value){
@@ -43,7 +43,7 @@ function ensureOption(sel, value){
 function fillSubOptions(){
   const cat = projectCats().find(c=> c.name === $('f_category').value);
   const subs = cat ? cat.subs : [];
-  $('f_subcatSel').innerHTML = `<option value="">${!$('f_category').value ? 'اختر الفئة الرئيسية أولًا' : subs.length ? 'اختر الفئة الفرعية' : 'لا توجد فئات فرعية لهذه الفئة'}</option>` +
+  $('f_subcatSel').innerHTML = `<option value="">${escapeHtml(t(!$('f_category').value ? 'app.cat.mainFirst' : subs.length ? 'app.cat.pickSub' : 'app.cat.noSubs'))}</option>` +
     subs.map(s=> optionHtml(s.name, s.code)).join('');
 }
 function setCategoryValue(cat, sub){
@@ -71,20 +71,20 @@ $('f_subcatSel').addEventListener('change', ()=>{
 const DESC_MAX = 265;
 // key -> [element id, label, inside "more details"?]
 const FIELD_DEFS = {
-  category:   ['f_category', 'الفئة', false],
-  name:       ['f_name', 'الوصف', false],
-  condition:  ['conditionChips', 'الحالة', false],
-  building:   ['f_building', 'رقم المبنى', false],
-  location:   ['f_location', 'الموقع / الغرفة', false],
-  catcode:    ['f_catcode', 'كود الفئة', true],
-  subcat:     ['f_subcat', 'الفئة الفرعية', true],
-  subcatcode: ['f_subcatcode', 'كود الفئة الفرعية', true],
-  brand:      ['f_brand', 'الماركة', true],
-  model:      ['f_model', 'الموديل', true],
-  sn:         ['f_sn', 'الرقم التسلسلي', true],
-  plateno:    ['f_plateno', 'رقم اللوحة', true],
-  value:      ['f_value', 'القيمة', true],
-  notes:      ['f_notes', 'الملاحظات', false]
+  category:   ['f_category', t('co.f.category'), false],
+  name:       ['f_name', t('co.f.name'), false],
+  condition:  ['conditionChips', t('co.f.condition'), false],
+  building:   ['f_building', t('co.f.building'), false],
+  location:   ['f_location', t('co.f.location'), false],
+  catcode:    ['f_catcode', t('co.f.catcode'), true],
+  subcat:     ['f_subcat', t('co.f.subcat'), true],
+  subcatcode: ['f_subcatcode', t('co.f.subcatcode'), true],
+  brand:      ['f_brand', t('co.f.brand'), true],
+  model:      ['f_model', t('co.f.model'), true],
+  sn:         ['f_sn', t('co.f.sn'), true],
+  plateno:    ['f_plateno', t('co.f.plateno'), true],
+  value:      ['f_value', t('co.f.value'), true],
+  notes:      ['f_notes', t('co.f.notes'), false]
 };
 function userSettings(){
   const st = (session && session.license && session.license.settings) || {};
@@ -104,8 +104,8 @@ function applyFieldSettings(){
   const st = userSettings();
   document.querySelectorAll('#formSheet .req-star').forEach(x=> x.remove());
   $('photoLabel').textContent = st.minPhotos > 1
-    ? `الصور (${st.minPhotos} على الأقل من جوانب مختلفة)`
-    : 'الصور (٣-٤ صور من كل الجوانب)';
+    ? t('app.photos.min', {n: st.minPhotos})
+    : t('app.photos.label');
 
   const star = ()=>{ const s = document.createElement('span'); s.className = 'req-star'; s.textContent = '*'; return s; };
   ['f_tag', 'photoGrid'].concat(st.required.map(k=> FIELD_DEFS[k][0])).forEach(id=>{
@@ -114,7 +114,8 @@ function applyFieldSettings(){
   });
   const en = st.lang === 'en';
   $('f_name').dir = en ? 'ltr' : 'rtl';
-  $('f_name').placeholder = en ? 'e.g. Brown wooden meeting table' : 'مثال: طاولة اجتماعات خشب بني';
+  // The example follows the project's entry language, not the interface language.
+  $('f_name').placeholder = (en ? I18N.en : I18N.ar)['app.form.namePh'];
   if(st.required.some(k=> FIELD_DEFS[k][2])){
     $('moreToggle').classList.add('open'); $('moreFields').classList.add('open');
   }
@@ -131,16 +132,16 @@ function validateRequired(){
   const st = userSettings();
   const missing = [];
   const mark = (wrap, label)=>{ wrap.classList.add('invalid'); missing.push({wrap, label}); };
-  if(!$('f_tag').value.trim()) mark($('f_tag').closest('.field'), 'رقم الأصل');
+  if(!$('f_tag').value.trim()) mark($('f_tag').closest('.field'), t('co.f.tag'));
   const photoCount = currentPhotos.filter(p=>p).length;
-  if(photoCount < st.minPhotos) mark($('photoGrid').closest('.field'), st.minPhotos > 1 ? `${st.minPhotos} صور` : 'صورة واحدة');
+  if(photoCount < st.minPhotos) mark($('photoGrid').closest('.field'), st.minPhotos > 1 ? t('co.proj.photos', {n: st.minPhotos}) : t('app.photos.one'));
   st.required.forEach(k=>{ if(fieldIsEmpty(k)) mark(fieldWrap(k), FIELD_DEFS[k][1]); });
   if(!missing.length) return true;
   if(missing.some(m=> $('moreFields').contains(m.wrap))){
     $('moreToggle').classList.add('open'); $('moreFields').classList.add('open');
   }
   missing[0].wrap.scrollIntoView({behavior:'smooth', block:'center'});
-  toast('أكمل الحقول الإجبارية: ' + missing.map(m=> m.label).join('، '));
+  toast(t('app.form.missing', {fields: missing.map(m=> m.label).join(t('app.listSep'))}));
   return false;
 }
 // Remove the red mark as soon as the field is filled.
@@ -165,7 +166,7 @@ function updateDescMeta(){
   const v = el.value.trim();
   const lang = userSettings().lang;
   let warn = '';
-  if(v && lang === 'ar' && !AR_RE.test(v) && LATIN_RE.test(v)) warn = 'لغة الإدخال المعتمدة لك هي العربية';
+  if(v && lang === 'ar' && !AR_RE.test(v) && LATIN_RE.test(v)) warn = I18N.ar['app.form.langAr'];
   if(v && lang === 'en' && AR_RE.test(v)) warn = 'Entry language for your account is English';
   $('langWarn').textContent = warn;
 }

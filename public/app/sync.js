@@ -38,7 +38,7 @@ function assetData(a){
   if(a.deleteFlag) d.deleteFlag = a.deleteFlag;
   return d;
 }
-function syncFail(r){ const e = new Error((r && r.message) || 'تعذّرت المزامنة'); e.code = r && r.code; return e; }
+function syncFail(r){ const e = new Error(r && (r.message || r.messageEn) ? msgOf(r) : t('app.sync.failed')); e.code = r && r.code; return e; }
 
 function updateSyncUi(pending){
   if(pending != null) syncState.pending = pending;
@@ -52,10 +52,10 @@ function updateSyncUi(pending){
   else { el.classList.add('ok'); el.textContent = '☁ ✓'; }
 }
 $('syncPill').addEventListener('click', ()=>{
-  if(!navigator.onLine){ toast(`لا يوجد اتصال. ${syncState.pending || 'لا'} أصل بانتظار الرفع، وتُرفع تلقائيًا عند الاتصال`); return; }
-  if(syncState.error) toast('آخر محاولة: ' + syncState.error + '. جارٍ إعادة المحاولة');
-  else if(syncState.pending) toast(`جارٍ رفع ${syncState.pending} أصل`);
-  else toast('كل الأصول مرفوعة للخادم');
+  if(!navigator.onLine){ toast(t('app.sync.offline', {n: syncState.pending || 0})); return; }
+  if(syncState.error) toast(t('app.sync.retrying', {err: syncState.error}));
+  else if(syncState.pending) toast(t('app.sync.uploading', {n: syncState.pending}));
+  else toast(t('app.sync.allUpServer'));
   runSync();
 });
 
@@ -102,7 +102,7 @@ async function runSync(){
           const item = chunk.find(x=> x.h === u.hash);
           const body = u.kind === 'thumb' ? await makeThumb(item.blob) : item.blob;
           const res = await fetch(u.url, {method: 'PUT', headers: {'Content-Type': 'image/jpeg', 'x-upsert': 'true'}, body});
-          if(!res.ok) throw syncFail({message: 'تعذّر رفع صورة (' + res.status + ')'});
+          if(!res.ok) throw syncFail({message: t('app.sync.photoFailed', {status: res.status}), messageEn: t('app.sync.photoFailed', {status: res.status})});
         }
       }
       const r = await api('/api/sync', {action: 'push', deviceId: deviceId(), assets: prepared.map(({a, photos, label})=>({
@@ -121,7 +121,7 @@ async function runSync(){
     }
     if(!queue.length){ syncState.lastOk = Date.now(); await setSetting('lastSyncAt', syncState.lastOk); }
   }catch(e){
-    syncState.error = e.message || 'تعذّرت المزامنة';
+    syncState.error = e.message || t('app.sync.failed');
     if(HARD_FAIL.includes(e.code)) verifyOnline();
     else if(e.code === 'sync_off' || e.code === 'no_project') verifyOnline();
     clearTimeout(syncState.timer);

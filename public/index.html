@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>AMAN · الجرد الميداني</title>
+<title>AMAN · Field inventory</title>
 <meta name="theme-color" content="#01345A">
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="icon" href="/icon.svg" type="image/svg+xml">
@@ -14,6 +14,9 @@
 <script src="/vendor/xlsx.full.min.js"></script>
 <script src="/vendor/jszip.min.js"></script>
 <link rel="stylesheet" href="/app/app.css">
+<script src="/i18n/ar.js"></script>
+<script src="/i18n/en.js"></script>
+<script src="/i18n/i18n.js"></script>
 </head>
 <body>
 
@@ -21,40 +24,40 @@
   <div class="login-wrap">
   <div class="login-logo"><img src="/brand/aman-logo-on-dark.svg" alt="AMAN — Asset Management And Navigation Platform"></div>
   <form class="login-box" id="loginForm" autocomplete="on">
-    <div class="login-title">الجرد الميداني</div>
-    <div class="login-sub">سجّل الدخول بالحساب الذي زوّدك به المزوّد. تحتاج اتصالًا بالإنترنت عند أول دخول فقط، ثم يعمل التطبيق دون اتصال.</div>
+    <div class="login-title" data-i18n="app.name"></div>
+    <div class="login-sub" data-i18n="app.login.sub"></div>
     <div class="field">
-      <label for="lg_user">اسم المستخدم</label>
+      <label for="lg_user" data-i18n="common.username"></label>
       <input id="lg_user" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" dir="ltr">
     </div>
     <div class="field">
-      <label for="lg_pass">كلمة المرور</label>
+      <label for="lg_pass" data-i18n="common.password"></label>
       <input id="lg_pass" type="password" autocomplete="current-password" dir="ltr">
     </div>
     <div class="login-err" id="loginErr"></div>
-    <button type="submit" class="btn btn-primary btn-block" id="loginBtn">دخول</button>
-    <div class="login-foot"><a href="/account">نسيت كلمة المرور؟</a><br>للحصول على رخصة أو تجديدها تواصل مع المزوّد.</div>
+    <button type="submit" class="btn btn-primary btn-block" id="loginBtn" data-i18n="common.signInBtn"></button>
+    <div class="login-foot"><a href="/account" data-i18n="common.forgot"></a><br><span data-i18n="app.login.licence"></span><br><button type="button" class="lang-link" data-lang-toggle></button></div>
   </form>
   </div>
 </div>
 
 <header class="topbar">
   <div class="topbar-row">
-    <div class="brand"><img src="/brand/aman-wordmark-on-dark.svg" alt="AMAN"><span class="sep"></span><span>الجرد الميداني</span></div>
+    <div class="brand"><img src="/brand/aman-wordmark-on-dark.svg" alt="AMAN"><span class="sep"></span><span data-i18n="app.name"></span></div>
     <div style="display:flex; align-items:center; gap:10px;">
-      <div class="count-pill"><b id="assetCount">0</b> أصل مسجّل<span id="flaggedCount"></span></div>
-      <button class="sync-pill" id="syncPill" hidden title="المزامنة مع الخادم"></button>
-      <button class="icon-btn" id="settingsBtn" style="font-size:19px;" title="الحساب والرخصة">⚙</button>
+      <div class="count-pill"><b id="assetCount">0</b> <span data-i18n="app.top.assets"></span><span id="flaggedCount"></span></div>
+      <button class="sync-pill" id="syncPill" hidden data-i18n-title="app.top.sync"></button>
+      <button class="icon-btn" id="settingsBtn" style="font-size:19px;" data-i18n-title="app.acc.title">⚙</button>
     </div>
   </div>
   <div class="lic-banner" id="licBanner"></div>
   <div class="search-row">
-    <input class="search-input" id="searchBox" type="text" placeholder="ابحث برقم الأصل أو الاسم...">
-    <button class="scan-btn" id="scanSearchBtn" title="امسح باركود للبحث" aria-label="مسح باركود للبحث"><svg width="22" height="18" viewBox="0 0 22 18" aria-hidden="true"><g fill="currentColor"><rect x="1" y="1" width="2" height="16"/><rect x="5" y="1" width="1" height="16"/><rect x="8" y="1" width="3" height="16"/><rect x="13" y="1" width="1" height="16"/><rect x="16" y="1" width="2" height="16"/><rect x="20" y="1" width="1" height="16"/></g></svg></button>
+    <input class="search-input" id="searchBox" type="search" data-i18n-ph="app.search">
+    <button class="scan-btn" id="scanSearchBtn" data-i18n-title="app.scanSearch"><svg width="22" height="18" viewBox="0 0 22 18" aria-hidden="true"><g fill="currentColor"><rect x="1" y="1" width="2" height="16"/><rect x="5" y="1" width="1" height="16"/><rect x="8" y="1" width="3" height="16"/><rect x="13" y="1" width="1" height="16"/><rect x="16" y="1" width="2" height="16"/><rect x="20" y="1" width="1" height="16"/></g></svg></button>
   </div>
   <div class="location-bar">
-    <div class="loc-text" id="locText">لا يوجد موقع محدد</div>
-    <button id="setLocationBtn">📍 تحديد الموقع</button>
+    <div class="loc-text" id="locText"></div>
+    <button id="setLocationBtn"><span aria-hidden="true">📍</span> <span data-i18n="app.loc.set"></span></button>
   </div>
 </header>
 
@@ -62,53 +65,53 @@
   <div class="install-card" id="installCard">
     <div id="installText"></div>
     <div class="install-actions">
-      <button type="button" class="primary" id="installBtn" style="display:none;">تثبيت التطبيق</button>
-      <button type="button" class="ghost" id="installLater">لاحقًا</button>
+      <button type="button" class="primary" id="installBtn" style="display:none;" data-i18n="app.install"></button>
+      <button type="button" class="ghost" id="installLater" data-i18n="app.later"></button>
     </div>
   </div>
   <div id="listWrap"></div>
   <div class="empty-state" id="emptyState" style="display:none;">
-    <div class="big">لا توجد أصول مسجّلة بعد</div>
-    <div class="small">اضغط "أصل جديد" بالأسفل، الصق الرقم على القطعة<br>وابدأ بالتصوير والتوصيف.</div>
+    <div class="big" data-i18n="app.empty.title"></div>
+    <div class="small" data-i18n-html="app.empty.sub"></div>
   </div>
 </main>
 
 <div class="fab-row">
-  <button class="btn btn-secondary" id="exportBtn">تصدير (Excel + صور)</button>
-  <button class="btn btn-primary" id="addBtn">+ أصل جديد</button>
+  <button class="btn btn-secondary" id="exportBtn" data-i18n="app.export"></button>
+  <button class="btn btn-primary" id="addBtn" data-i18n="app.add"></button>
 </div>
 
 <!-- Add/Edit Sheet -->
 <div class="sheet" id="formSheet">
   <div class="sheet-header">
     <button class="icon-btn" id="closeFormBtn">✕</button>
-    <div class="sheet-title" id="formTitle">أصل جديد</div>
-    <button type="button" class="copy-prev" id="copyPrevBtn" title="نسخ البيانات من آخر أصل">نسخ السابق</button>
+    <div class="sheet-title" id="formTitle"></div>
+    <button type="button" class="copy-prev" id="copyPrevBtn" data-i18n-title="app.form.copyPrevTitle"><span data-i18n="app.form.copyPrev"></span></button>
   </div>
   <div class="sheet-body">
 
     <div class="flag-note" id="flagNote"></div>
 
     <div class="field">
-      <label>رقم الأصل</label>
+      <label><span data-i18n="co.f.tag"></span></label>
       <div class="tag-input-row">
-        <input type="text" id="f_tag" class="mono" placeholder="مثال: A-0012" inputmode="text">
-        <button type="button" class="scan-btn" id="scanTagBtn" title="امسح الباركود" aria-label="مسح الباركود"><svg width="22" height="18" viewBox="0 0 22 18" aria-hidden="true"><g fill="currentColor"><rect x="1" y="1" width="2" height="16"/><rect x="5" y="1" width="1" height="16"/><rect x="8" y="1" width="3" height="16"/><rect x="13" y="1" width="1" height="16"/><rect x="16" y="1" width="2" height="16"/><rect x="20" y="1" width="1" height="16"/></g></svg></button>
-        <button type="button" class="btn-next" id="nextTagBtn">التالي</button>
+        <input type="text" id="f_tag" class="mono" data-i18n-ph="app.form.tagPh" inputmode="text">
+        <button type="button" class="scan-btn" id="scanTagBtn" data-i18n-title="app.form.scanTag"><svg width="22" height="18" viewBox="0 0 22 18" aria-hidden="true"><g fill="currentColor"><rect x="1" y="1" width="2" height="16"/><rect x="5" y="1" width="1" height="16"/><rect x="8" y="1" width="3" height="16"/><rect x="13" y="1" width="1" height="16"/><rect x="16" y="1" width="2" height="16"/><rect x="20" y="1" width="1" height="16"/></g></svg></button>
+        <button type="button" class="btn-next" id="nextTagBtn" data-i18n="app.form.next"></button>
       </div>
       <div class="dup-warn" id="dupWarn"></div>
     </div>
 
     <div class="field">
-      <label id="photoLabel">الصور (٣-٤ صور من كل الجوانب)</label>
+      <label id="photoLabel"></label>
       <div class="photo-grid" id="photoGrid"></div>
-      <div class="photo-hint">اضغط على أي مربع لالتقاط صورة بالكاميرا. اضغط على الصورة لإعادة التقاطها.</div>
+      <div class="photo-hint" data-i18n="app.form.photoHint"></div>
     </div>
 
     <div class="field">
-      <label>الفئة</label>
+      <label><span data-i18n="co.f.category"></span></label>
       <select id="f_category">
-        <option value="">اختر الفئة</option>
+        <option value=""></option>
         <option>Furniture</option>
         <option>COMPUTER &amp; NET WORK</option>
         <option>Electrical Appliances</option>
@@ -119,100 +122,100 @@
     </div>
 
     <div class="field" id="subcatPick" hidden>
-      <label>الفئة الفرعية</label>
-      <select id="f_subcatSel"><option value="">اختر الفئة الرئيسية أولًا</option></select>
+      <label><span data-i18n="co.f.subcat"></span></label>
+      <select id="f_subcatSel"><option value=""></option></select>
     </div>
 
     <div class="field">
-      <label>الوصف / الاسم</label>
-      <textarea id="f_name" class="desc-box" rows="2" maxlength="265" placeholder="مثال: طاولة اجتماعات خشب بني"></textarea>
+      <label><span data-i18n="app.form.name"></span></label>
+      <textarea id="f_name" class="desc-box" rows="2" maxlength="265" ></textarea>
       <div class="field-meta"><span class="lang-warn" id="langWarn"></span><span class="mono" id="descCount">0/265</span></div>
-      <button type="button" class="btn-ai" id="aiSuggestBtn">✨ اقترح وصف بالذكاء الاصطناعي</button>
+      <button type="button" class="btn-ai" id="aiSuggestBtn"><span aria-hidden="true">✨</span> <span data-i18n="app.ai.suggest"></span></button>
       <div class="ai-hint" id="aiHint"></div>
     </div>
 
     <div class="field">
-      <label>الحالة</label>
+      <label><span data-i18n="co.f.condition"></span></label>
       <div class="condition-chips" id="conditionChips">
-        <button type="button" class="chip" data-v="Good">جيد</button>
-        <button type="button" class="chip" data-v="New">جديد</button>
-        <button type="button" class="chip" data-v="Fair">متوسط</button>
-        <button type="button" class="chip" data-v="Needs Maintenance">يحتاج صيانة</button>
+        <button type="button" class="chip" data-v="Good" data-i18n="co.cond.good"></button>
+        <button type="button" class="chip" data-v="New" data-i18n="co.cond.new"></button>
+        <button type="button" class="chip" data-v="Fair" data-i18n="co.cond.fair"></button>
+        <button type="button" class="chip" data-v="Needs Maintenance" data-i18n="co.cond.maint"></button>
       </div>
     </div>
 
     <div class="field two-col">
       <div>
-        <label>رقم المبنى</label>
+        <label><span data-i18n="co.f.building"></span></label>
         <input type="text" id="f_building" class="mono" placeholder="B01">
       </div>
       <div>
-        <label>الموقع / الغرفة</label>
+        <label><span data-i18n="co.f.location"></span></label>
         <input type="text" id="f_location" placeholder="Room 3">
       </div>
     </div>
 
     <div class="more-toggle" id="moreToggle">
-      <span>تفاصيل إضافية (اختياري)</span>
+      <span data-i18n="app.form.more"></span>
       <span class="arrow">⌄</span>
     </div>
     <div class="more-fields" id="moreFields">
       <div class="label-row">
         <img class="label-thumb" id="labelThumb" alt="">
-        <button type="button" class="btn-ai" id="labelReadBtn">📷 صوّر لوحة البيانات لقراءة الماركة والموديل والرقم التسلسلي</button>
+        <button type="button" class="btn-ai" id="labelReadBtn"><span aria-hidden="true">📷</span> <span data-i18n="app.plate.read"></span></button>
       </div>
       <div class="field two-col">
         <div>
-          <label>كود الفئة</label>
+          <label><span data-i18n="co.f.catcode"></span></label>
           <input type="text" id="f_catcode" class="mono" placeholder="10000">
         </div>
         <div>
-          <label>الفئة الفرعية</label>
+          <label><span data-i18n="co.f.subcat"></span></label>
           <input type="text" id="f_subcat" placeholder="Chairs, stools">
         </div>
       </div>
       <div class="field two-col">
         <div>
-          <label>كود الفئة الفرعية</label>
+          <label><span data-i18n="co.f.subcatcode"></span></label>
           <input type="text" id="f_subcatcode" class="mono" placeholder="10054">
         </div>
         <div>
-          <label>الماركة</label>
+          <label><span data-i18n="co.f.brand"></span></label>
           <input type="text" id="f_brand" placeholder="DELL">
         </div>
       </div>
       <div class="field two-col">
         <div>
-          <label>الموديل</label>
+          <label><span data-i18n="co.f.model"></span></label>
           <input type="text" id="f_model" placeholder="">
         </div>
         <div>
-          <label>الرقم التسلسلي (SN)</label>
+          <label><span data-i18n="app.form.sn"></span></label>
           <input type="text" id="f_sn" class="mono" placeholder="">
         </div>
       </div>
       <div class="field two-col">
         <div>
-          <label>رقم اللوحة</label>
+          <label><span data-i18n="co.f.plateno"></span></label>
           <input type="text" id="f_plateno" class="mono" placeholder="">
         </div>
         <div>
-          <label>القيمة</label>
+          <label><span data-i18n="co.f.value"></span></label>
           <input type="text" id="f_value" inputmode="decimal" placeholder="900">
         </div>
       </div>
     </div>
 
     <div class="field">
-      <label>ملاحظات (اختياري)</label>
-      <textarea id="f_notes" placeholder="أي تفاصيل إضافية..."></textarea>
+      <label><span data-i18n="app.form.notes"></span></label>
+      <textarea id="f_notes" data-i18n-ph="app.form.notesPh"></textarea>
     </div>
 
-    <div class="delete-link" id="deleteLink" style="display:none;">وسم هذا الأصل للحذف</div>
+    <div class="delete-link" id="deleteLink" style="display:none;"></div>
   </div>
 
   <div class="sheet-footer">
-    <button class="btn btn-primary btn-block" id="saveBtn">حفظ الأصل</button>
+    <button class="btn btn-primary btn-block" id="saveBtn" data-i18n="app.form.save"></button>
   </div>
 </div>
 
@@ -220,24 +223,24 @@
 <div class="sheet" id="locationSheet">
   <div class="sheet-header">
     <button class="icon-btn" id="closeLocationBtn">✕</button>
-    <div class="sheet-title">تحديد الموقع الحالي</div>
+    <div class="sheet-title" data-i18n="app.loc.title"></div>
     <span style="width:30px;"></span>
   </div>
   <div class="sheet-body">
     <div class="field">
-      <label>رقم المبنى</label>
-      <input type="text" id="loc_building" class="mono" placeholder="مثال: B01">
+      <label><span data-i18n="co.f.building"></span></label>
+      <input type="text" id="loc_building" class="mono" data-i18n-ph="app.loc.buildingPh">
     </div>
     <div class="field">
-      <label>الغرفة / الموقع</label>
-      <input type="text" id="loc_room" placeholder="مثال: Room 3">
+      <label><span data-i18n="app.loc.room"></span></label>
+      <input type="text" id="loc_room" data-i18n-ph="app.loc.roomPh">
     </div>
     <div class="photo-hint">
-      كل أصل جديد تضيفه بعد الحفظ يُعبّى تلقائياً بهذا المبنى والموقع. لما تنتقل لغرفة ثانية، ارجع هنا وحدّث الموقع فقط — وحدّث المبنى أيضاً لو انتقلت لمبنى مختلف بالكامل.
+      <span data-i18n="app.loc.hint"></span>
     </div>
   </div>
   <div class="sheet-footer">
-    <button class="btn btn-primary btn-block" id="saveLocationBtn">حفظ الموقع الحالي</button>
+    <button class="btn btn-primary btn-block" id="saveLocationBtn" data-i18n="app.loc.save"></button>
   </div>
 </div>
 
@@ -245,35 +248,35 @@
 <div class="sheet" id="settingsSheet">
   <div class="sheet-header">
     <button class="icon-btn" id="closeSettingsBtn">✕</button>
-    <div class="sheet-title">الحساب والرخصة</div>
+    <div class="sheet-title" data-i18n="app.acc.title"></div>
     <span style="width:30px;"></span>
   </div>
   <div class="sheet-body">
-    <div class="info-row"><span>المستخدم</span><span id="acc_user">—</span></div>
-    <div class="info-row"><span>العميل</span><span id="acc_customer">—</span></div>
-    <div class="info-row"><span>المشروع</span><span id="acc_project">—</span></div>
-    <div class="info-row"><span>تنتهي الرخصة</span><span id="acc_expiry" class="mono">—</span></div>
-    <div class="info-row"><span>الذكاء الاصطناعي</span><span id="acc_ai">—</span></div>
-    <div class="info-row"><span>لغة الإدخال</span><span id="acc_lang">—</span></div>
-    <div class="info-row"><span>آخر تحقق من الخادم</span><span id="acc_checked" class="mono">—</span></div>
-    <div class="info-row"><span>المزامنة مع الخادم</span><span id="acc_sync">—</span></div>
-    <div class="info-row"><span>حماية البيانات على الجهاز</span><span id="acc_storage">—</span></div>
+    <div class="info-row"><span data-i18n="app.acc.user"></span><span id="acc_user">—</span></div>
+    <div class="info-row"><span data-i18n="app.acc.customer"></span><span id="acc_customer">—</span></div>
+    <div class="info-row"><span data-i18n="app.acc.project"></span><span id="acc_project">—</span></div>
+    <div class="info-row"><span data-i18n="app.acc.expiry"></span><span id="acc_expiry" class="mono">—</span></div>
+    <div class="info-row"><span data-i18n="app.acc.ai"></span><span id="acc_ai">—</span></div>
+    <div class="info-row"><span data-i18n="app.acc.lang"></span><span id="acc_lang">—</span></div>
+    <div class="info-row"><span data-i18n="app.acc.checked"></span><span id="acc_checked" class="mono">—</span></div>
+    <div class="info-row"><span data-i18n="app.acc.sync"></span><span id="acc_sync">—</span></div>
+    <div class="info-row"><span data-i18n="app.acc.storage"></span><span id="acc_storage">—</span></div>
+    <div class="info-row"><span data-i18n="app.acc.uiLang"></span><span><button type="button" class="lang-link" data-lang-toggle></button></span></div>
     <div class="photo-hint" style="margin-top:14px;">
-      يعمل التطبيق دون إنترنت حتى تاريخ <b id="acc_grace" class="mono">—</b>. اتصل بالإنترنت قبل هذا التاريخ ليتجدد التحقق تلقائيًا.
-      بيانات الجرد والصور محفوظة على هذا الجهاز فقط؛ صدّرها قبل تسجيل الخروج أو تغيير الجهاز.
+      <span data-i18n="app.acc.graceA"></span> <b id="acc_grace" class="mono">—</b>. <span data-i18n="app.acc.graceB"></span>
     </div>
     <div class="field" style="margin-top:22px;">
-      <label>النسخ الاحتياطي</label>
-      <button type="button" class="btn btn-secondary btn-block" id="restoreBtn">استعادة من ملف تصدير سابق</button>
+      <label><span data-i18n="app.acc.backup"></span></label>
+      <button type="button" class="btn btn-secondary btn-block" id="restoreBtn" data-i18n="app.acc.restore"></button>
       <div class="backup-note">
-        ملف «تصدير (Excel + صور)» هو نفسه النسخة الاحتياطية: احتفظ به، ويمكنك استعادته على هذا الجهاز أو أي جهاز آخر. الأصول الموجودة مسبقًا لا تتكرر عند الاستعادة.
-        <br>آخر تصدير: <b id="acc_backup" class="mono">—</b>
+        <span data-i18n="app.acc.backupHint"></span>
+        <br><span data-i18n="app.acc.lastExport"></span> <b id="acc_backup" class="mono">—</b>
       </div>
     </div>
   </div>
   <div class="sheet-footer">
-    <button class="btn btn-secondary" id="checkNowBtn">تحقق الآن</button>
-    <button class="btn btn-primary" id="logoutBtn">تسجيل الخروج</button>
+    <button class="btn btn-secondary" id="checkNowBtn" data-i18n="app.acc.checkNow"></button>
+    <button class="btn btn-primary" id="logoutBtn" data-i18n="common.signOut"></button>
   </div>
 </div>
 
@@ -285,15 +288,15 @@
 <div class="scanner" id="scanner">
   <div class="scanner-top">
     <button class="icon-btn" id="closeScanBtn">✕</button>
-    <div style="font-weight:600;">مسح الباركود</div>
+    <div style="font-weight:600;" data-i18n="app.scan.title"></div>
     <span style="width:30px;"></span>
   </div>
   <div id="scanReader"></div>
   <div class="scanner-hint" id="scanHint"></div>
   <div class="scanner-controls">
-    <div class="zoom-row" id="zoomRow"><span>تقريب</span><input type="range" id="zoomSlider" min="1" max="1" step="0.1" value="1"></div>
-    <button type="button" id="torchBtn" style="display:none;">🔦 الفلاش</button>
-    <button type="button" class="primary" id="scanPhotoBtn">📷 صوّر الباركود</button>
+    <div class="zoom-row" id="zoomRow"><span data-i18n="app.scan.zoom"></span><input type="range" id="zoomSlider" min="1" max="1" step="0.1" value="1"></div>
+    <button type="button" id="torchBtn" style="display:none;"><span aria-hidden="true">🔦</span> <span data-i18n="app.scan.torch"></span></button>
+    <button type="button" class="primary" id="scanPhotoBtn"><span aria-hidden="true">📷</span> <span data-i18n="app.scan.photo"></span></button>
   </div>
 </div>
 <div id="scanFileReader"></div>

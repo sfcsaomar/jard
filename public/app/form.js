@@ -103,7 +103,7 @@ async function openForm(id=null){
 
   if(id){
     const a = assets.find(x=>x.id===id);
-    $('formTitle').textContent = 'تعديل الأصل';
+    $('formTitle').textContent = t('app.form.editTitle');
     $('f_tag').value = a.tag || '';
     $('f_name').value = a.name || '';
     $('f_building').value = a.building || '';
@@ -122,14 +122,14 @@ async function openForm(id=null){
     currentLabel = a.labelPhoto || null;
     setCondition(a.condition || '');
     $('deleteLink').style.display = 'block';
-    $('deleteLink').textContent = isFlagged(a) ? 'إلغاء وسم الحذف' : 'وسم هذا الأصل للحذف';
+    $('deleteLink').textContent = isFlagged(a) ? t('app.flag.unmark') : t('app.flag.mark');
     $('flagNote').innerHTML = isFlagged(a)
-      ? `<b>هذا الأصل موسوم للحذف.</b> السبب: ${escapeHtml(a.deleteFlag.reason || '—')} · ${escapeHtml(fmtDate(a.deleteFlag.at))}<br>لن يظهر في ورقة الجرد الرئيسية عند التصدير، بل في ورقة «مطلوب حذفها».`
+      ? t('app.flag.note', {reason: escapeHtml(a.deleteFlag.reason || '—'), date: escapeHtml(fmtDate(a.deleteFlag.at))})
       : '';
     $('flagNote').classList.toggle('show', isFlagged(a));
     $('copyPrevBtn').style.visibility = 'hidden';
   } else {
-    $('formTitle').textContent = 'أصل جديد';
+    $('formTitle').textContent = t('app.form.newTitle');
     $('f_tag').value = '';
     $('f_name').value = '';
     $('f_building').value = await getSetting('currentBuilding');
@@ -171,12 +171,12 @@ $('addBtn').addEventListener('click', ()=> openForm(null));
 $('saveBtn').addEventListener('click', async ()=>{
   const tag = $('f_tag').value.trim();
   if(!tag){
-    toast('الرجاء إدخال رقم الأصل');
+    toast(t('app.form.needTag'));
     return;
   }
   if(!validateRequired()) return;
   const dup = findDuplicate(tag);
-  if(dup && !confirm(`رقم الأصل ${tag} مسجّل مسبقًا (${dup.name || 'بدون اسم'}). هل تريد الحفظ رغم التكرار؟`)){
+  if(dup && !confirm(t('app.dup.confirm', {tag, name: dup.name || t('app.noName')}))){
     return;
   }
   const asset = {
@@ -209,7 +209,7 @@ $('saveBtn').addEventListener('click', async ()=>{
   await setSetting('lastChangeAt', Date.now());
   closeForm();
   await refreshList($('searchBox').value);
-  toast('تم الحفظ');
+  toast(t('common.saved'));
 });
 
 // Deleting is not allowed in the field. A wrong entry is flagged with a reason instead;
@@ -219,25 +219,25 @@ $('deleteLink').addEventListener('click', async ()=>{
   const a = assets.find(x=>x.id===currentEditId);
   if(!a) return;
   if(isFlagged(a)){
-    if(!confirm('إلغاء وسم الحذف وإعادة الأصل إلى قائمة الجرد؟')) return;
+    if(!confirm(t('app.flag.unmarkConfirm'))) return;
     a.deleteFlag = null;
     await dbPut(a);
     await setSetting('lastChangeAt', Date.now());
     closeForm();
     await refreshList($('searchBox').value);
-    toast('أُلغي وسم الحذف');
+    toast(t('app.flag.unmarked'));
     return;
   }
-  let reason = prompt('سبب وسم هذا الأصل للحذف (إجباري)، مثل: إدخال مكرر، رقم خاطئ:');
+  let reason = prompt(t('app.flag.reasonPrompt'));
   if(reason === null) return;
   reason = reason.trim();
-  if(!reason){ toast('السبب إجباري لوسم الأصل للحذف'); return; }
+  if(!reason){ toast(t('app.flag.reasonNeeded')); return; }
   a.deleteFlag = {reason: reason.slice(0, 200), at: Date.now()};
   await dbPut(a);
   await setSetting('lastChangeAt', Date.now());
   closeForm();
   await refreshList($('searchBox').value);
-  toast('وُسم الأصل للحذف');
+  toast(t('app.flag.marked'));
 });
 
 $('searchBox').addEventListener('input', (e)=> refreshList(e.target.value));

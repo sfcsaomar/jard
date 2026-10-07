@@ -1,11 +1,14 @@
 // Offline support: the app shell and libraries are cached so the app opens without internet.
 // Every file index.html loads must be listed in SHELL (tests/static.test.mjs checks this).
-const CACHE = 'asset-inv-v9';
+const CACHE = 'asset-inv-v10';
 const SHELL = [
   '/',
   '/index.html',
   '/manifest.webmanifest',
   '/icon.svg',
+  '/i18n/ar.js',
+  '/i18n/en.js',
+  '/i18n/i18n.js',
   '/app/app.css',
   '/app/store.js',
   '/app/list.js',
@@ -58,9 +61,9 @@ self.addEventListener('fetch', (e) => {
     return;
   }
 
-  // The app's own code and styles: network first so an update never mixes old and new files,
+  // The app's own code, styles and texts: network first so an update never mixes old and new files,
   // cache as fallback when offline.
-  if (url.origin === location.origin && url.pathname.startsWith('/app/')) {
+  if (url.origin === location.origin && (url.pathname.startsWith('/app/') || url.pathname.startsWith('/i18n/'))) {
     e.respondWith(
       fetch(req)
         .then((res) => { if (res.ok) { const copy = res.clone(); caches.open(CACHE).then((c) => c.put(req, copy)); } return res; })

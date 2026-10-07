@@ -31,16 +31,16 @@ function renderInstallCard(){
   if(!session || isStandalone() || snoozed){ card.classList.remove('show'); return; }
   let html;
   if(isIOS()){
-    html = '<b>لحماية بياناتك:</b> قد يحذف Safari بيانات الجرد إذا لم يُفتح الموقع أسبوعًا. اضغط زر المشاركة <b>⬆︎</b> ثم <b>«إضافة إلى الشاشة الرئيسية»</b>، واعمل دائمًا من أيقونة التطبيق.';
-    if(assets.length) html += '<br><b>مهم:</b> التطبيق المُضاف لا يرى بيانات Safari. صدّر ما سجلته الآن، ثم افتح التطبيق من الأيقونة وسجّل الدخول واستعد الملف من ⚙.';
+    html = t('app.prot.ios');
+    if(assets.length) html += '<br>' + t('app.prot.iosMove');
     $('installBtn').style.display = 'none';
   } else if(deferredInstall){
-    html = '<b>ثبّت التطبيق على هاتفك</b> ليفتح من أيقونة ويعمل دون إنترنت، وتبقى بياناتك محمية من الحذف التلقائي.';
+    html = t('app.prot.install');
     $('installBtn').style.display = 'inline-block';
   } else if(storagePersisted === true){
     card.classList.remove('show'); return;
   } else {
-    html = '<b>لحماية بياناتك:</b> من قائمة المتصفح <b>⋮</b> اختر <b>«إضافة إلى الشاشة الرئيسية»</b> أو «تثبيت التطبيق»، واعمل دائمًا من أيقونته.';
+    html = t('app.prot.android');
     $('installBtn').style.display = 'none';
   }
   $('installText').innerHTML = html;
@@ -69,7 +69,7 @@ async function updateBackupState(){
     const unsynced = assets.filter(a=> a.dirty || !a.uid);
     const oldest = Math.min(...unsynced.map(a=> a.updatedAt || a.createdAt || Date.now()));
     backupMsg = unsynced.length && Date.now() - oldest > 12 * 3600000
-      ? `${unsynced.length} أصل لم يُرفع للخادم منذ أكثر من 12 ساعة. اتصل بالإنترنت، أو صدّر نسخة احتياطية.`
+      ? t('app.prot.unsynced', {n: unsynced.length})
       : '';
     renderLicenseBanner();
     return;
@@ -77,7 +77,7 @@ async function updateBackupState(){
   const pending = assets.length > 0 && lastChange > lastBackup;
   const stale = !lastBackup || (Date.now() - lastBackup) > 12 * 3600000;
   backupMsg = pending && stale
-    ? (lastBackup ? 'لديك أصول غير محفوظة في نسخة احتياطية منذ آخر تصدير.' : 'لم تأخذ نسخة احتياطية بعد.') + ' اضغط «تصدير» بالأسفل واحفظ الملف.'
+    ? t(lastBackup ? 'app.prot.newSinceBackup' : 'app.prot.noBackup') + ' ' + t('app.prot.exportNow')
     : '';
   renderLicenseBanner();
 }

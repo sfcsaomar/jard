@@ -5,10 +5,10 @@
 $('exportBtn').addEventListener('click', async ()=>{
   const all = await dbAll();
   if(all.length === 0){
-    toast('لا توجد أصول لتصديرها بعد');
+    toast(t('app.exp.none'));
     return;
   }
-  $('exportBtn').textContent = 'جارٍ التصدير...';
+  $('exportBtn').textContent = t('app.exp.working');
   $('exportBtn').disabled = true;
 
   try{
@@ -36,7 +36,7 @@ $('exportBtn').addEventListener('click', async ()=>{
     const ws = XLSX.utils.json_to_sheet(rows, {header: HEADERS});
     ws['!cols'] = [{wch:14},{wch:12},{wch:16},{wch:14},{wch:16},{wch:30},{wch:12},{wch:10},{wch:12},{wch:14},{wch:10},{wch:12},{wch:10},{wch:22},{wch:10}];
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'جرد الأصول');
+    XLSX.utils.book_append_sheet(wb, ws, t('co.xl.sheet'));
     if(flagged.length){
       const fRows = flagged.map(a=>({
         'Barcode': a.tag || '',
@@ -44,20 +44,20 @@ $('exportBtn').addEventListener('click', async ()=>{
         'Category Name': a.category || '',
         'Location': a.location || '',
         'Building  Id': a.building || '',
-        'سبب الحذف': a.deleteFlag.reason || '',
-        'تاريخ الوسم': fmtDate(a.deleteFlag.at),
-        'المستخدم': session ? (session.license.displayName || session.license.username) : ''
+        [t('co.xl.reason')]: a.deleteFlag.reason || '',
+        [t('co.xl.flagDate')]: fmtDate(a.deleteFlag.at),
+        [t('co.xl.user')]: session ? (session.license.displayName || session.license.username) : ''
       }));
       const fws = XLSX.utils.json_to_sheet(fRows);
       fws['!cols'] = [{wch:14},{wch:30},{wch:16},{wch:12},{wch:10},{wch:30},{wch:12},{wch:16}];
-      XLSX.utils.book_append_sheet(wb, fws, 'مطلوب حذفها');
+      XLSX.utils.book_append_sheet(wb, fws, t('co.xl.flaggedSheet'));
     }
     const xlsxData = XLSX.write(wb, {bookType:'xlsx', type:'array'});
 
     // Build ZIP: Excel + photos + data.json (data.json makes the export a restorable backup)
     const zip = new JSZip();
-    zip.file('جرد_الأصول.xlsx', xlsxData);
-    const imgFolder = zip.folder('الصور');
+    zip.file(t('app.exp.xlsxName') + '.xlsx', xlsxData);
+    const imgFolder = zip.folder(t('app.exp.folder'));
     const used = new Set();
     const uniqueName = (base)=>{
       let name = `${base}.jpg`, i = 2;
@@ -67,7 +67,7 @@ $('exportBtn').addEventListener('click', async ()=>{
     };
     const records = [];
     for(const a of all){
-      const safeTag = (a.tag || 'اصل').replace(/[\\/:*?"<>|]/g, '-');
+      const safeTag = (a.tag || t('app.exp.noTag')).replace(/[\\/:*?"<>|]/g, '-');
       const photoFiles = [];
       let n = 1;
       for(const p of a.photos){
@@ -94,19 +94,19 @@ $('exportBtn').addEventListener('click', async ()=>{
     const a = document.createElement('a');
     const dateStr = new Date().toISOString().slice(0,10);
     a.href = url;
-    a.download = `جرد_الأصول_${dateStr}.zip`;
+    a.download = `${t('app.exp.xlsxName')}_${dateStr}.zip`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     setTimeout(()=> URL.revokeObjectURL(url), 60000);
     await setSetting('lastBackupAt', Date.now());
     updateBackupState();
-    toast(flagged.length ? `تم التصدير (${flagged.length} أصل في ورقة «مطلوب حذفها»)` : 'تم إنشاء ملف التصدير');
+    toast(flagged.length ? t('app.exp.doneFlagged', {n: flagged.length}) : t('app.exp.done'));
   } catch(err){
     console.error(err);
-    toast('حدث خطأ أثناء التصدير');
+    toast(t('app.exp.failed'));
   } finally {
-    $('exportBtn').textContent = 'تصدير (Excel + صور)';
+    $('exportBtn').textContent = t('app.export');
     $('exportBtn').disabled = false;
   }
 });
@@ -118,18 +118,19 @@ $('restoreInput').addEventListener('change', async (e)=>{
   e.target.value = '';
   if(!file) return;
   const btn = $('restoreBtn');
-  btn.disabled = true; btn.textContent = 'جارٍ الاستعادة...';
+  btn.disabled = true; btn.textContent = t('app.res.working');
   try{
     const zip = await JSZip.loadAsync(file);
     const dataFile = zip.file('data.json');
-    if(!dataFile){ toast('هذا الملف لا يحتوي نسخة قابلة للاستعادة'); return; }
+    if(!dataFile){ toast(t('app.res.noData')); return; }
     const data = JSON.parse(await dataFile.async('string'));
-    if(data.format !== 'asset-inventory-backup' || !Array.isArray(data.assets)){ toast('ملف غير صالح'); return; }
+    if(data.format !== 'asset-inventory-backup' || !Array.isArray(data.assets)){ toast(t('app.res.bad')); return; }
     const existing = await dbAll();
     const seen = new Set(existing.map(a=> normTag(a.tag) + '|' + a.createdAt));
     const readImg = async (name)=>{
       if(!name) return null;
-      const f = zip.file('الصور/' + name);
+      // Exports from either interface language: the photos folder is named in that language.
+        const f = zip.file(I18N.ar['app.exp.folder'] + '/' + name) || zip.file(I18N.en['app.exp.folder'] + '/' + name);
       if(!f) return null;
       return new Blob([await f.async('arraybuffer')], {type:'image/jpeg'});
     };
@@ -147,11 +148,11 @@ $('restoreInput').addEventListener('change', async (e)=>{
     await setSetting('lastBackupAt', Date.now());
     await refreshList($('searchBox').value);
     $('settingsSheet').classList.remove('open');
-    toast(skipped ? `تمت استعادة ${added} أصل، وتخطي ${skipped} موجود مسبقًا` : `تمت استعادة ${added} أصل`);
+    toast(skipped ? t('app.res.doneSkipped', {n: added, s: skipped}) : t('app.res.done', {n: added}));
   }catch(err){
     console.error(err);
-    toast('تعذّرت قراءة الملف');
+    toast(t('app.res.readFailed'));
   }finally{
-    btn.disabled = false; btn.textContent = 'استعادة من ملف تصدير سابق';
+    btn.disabled = false; btn.textContent = t('app.acc.restore');
   }
 });

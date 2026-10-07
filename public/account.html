@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="robots" content="noindex, nofollow">
 <meta name="referrer" content="no-referrer">
-<title>AMAN · حسابي</title>
+<title>AMAN · Account</title>
 <link rel="icon" href="/icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <meta name="theme-color" content="#01345A">
@@ -23,15 +23,16 @@
   .ok-msg{color:var(--ok);}
   .links{display:flex; gap:14px; justify-content:center; margin-top:16px; font-size:13px; flex-wrap:wrap;}
   .links a{color:var(--text2);}
+  .lang-link{background:none; border:none; color:var(--accent); font-family:inherit; font-size:13px; text-decoration:underline; cursor:pointer; padding:0;}
   .who{background:var(--muted); border-radius:9px; padding:10px 12px; margin-bottom:14px; font-size:13.5px;}
 </style>
 </head>
 <body>
 <div class="box">
-  <div class="login-brand"><img src="/brand/aman-logo-on-dark.svg" alt="AMAN"><div class="ctx">حسابي · الجرد الميداني</div></div>
-  <div class="login-card" id="view"><div class="sub">جارٍ التحميل...</div></div>
+  <div class="login-brand"><img src="/brand/aman-logo-on-dark.svg" alt="AMAN"><div class="ctx" data-i18n="acc.ctx"></div></div>
+  <div class="login-card" id="view"><div class="sub" data-i18n="common.loading"></div></div>
   <div class="links">
-    <a href="/">تطبيق الجرد</a><a href="/company">لوحة الشركة</a><a href="/admin">لوحة المزوّد</a>
+    <a href="/" data-i18n="acc.link.app"></a><a href="/company" data-i18n="co.panelName"></a><a href="/admin" data-i18n="adm.panelName"></a><button type="button" class="lang-link" data-lang-toggle></button>
   </div>
 </div>
 

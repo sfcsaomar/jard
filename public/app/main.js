@@ -14,6 +14,6 @@ if('serviceWorker' in navigator){
   } else {
     const had = !!session;
     session = null; lsDel(SESSION_KEY);
-    showLogin(had ? 'انتهت مهلة العمل دون اتصال. سجّل الدخول مجددًا (بياناتك محفوظة على الجهاز).' : '');
+    showLogin(had ? t('app.login.graceOver') : '');
   }
 })();

@@ -8,8 +8,8 @@ function updateAiButtonState(){
   const btn = $('aiSuggestBtn');
   btn.disabled = !aiOn || !hasPhoto;
   $('aiHint').textContent = !aiOn
-    ? 'ميزة الذكاء الاصطناعي غير مفعّلة في رخصتك'
-    : (!hasPhoto ? 'أضف صورة واحدة على الأقل أولاً' : 'تحتاج اتصالًا بالإنترنت');
+    ? t('app.ai.off')
+    : (!hasPhoto ? t('app.ai.needPhoto') : t('app.needOnline'));
 }
 
 // Downscale before upload: phone photos are often 4-8 MB, which exceeds server limits and costs more.
@@ -34,30 +34,30 @@ function resizeForAI(blob, maxSide=1024, quality=0.82){
 $('aiSuggestBtn').addEventListener('click', async ()=>{
   const photo = currentPhotos.find(p=>p);
   if(!photo || !session) return;
-  if(!navigator.onLine){ toast('هذه الميزة تحتاج اتصالًا بالإنترنت'); return; }
+  if(!navigator.onLine){ toast(t('app.featureOnline')); return; }
 
   const btn = $('aiSuggestBtn');
   btn.disabled = true;
   btn.classList.add('loading');
-  btn.textContent = 'جارٍ التحليل...';
+  btn.textContent = t('app.ai.working');
   try{
     const image = await resizeForAI(photo);
     const r = await api('/api/ai-describe', {image, mediaType:'image/jpeg'}, session.token);
     if(r.ok && r.text){
       $('f_name').value = r.text;
       updateDescMeta();
-      toast(r.remaining != null ? `تم اقتراح وصف (متبقٍ ${r.remaining} هذا الشهر)` : 'تم اقتراح وصف — تقدر تعدّله قبل الحفظ');
+      toast(r.remaining != null ? t('app.ai.doneLeft', {n: r.remaining}) : t('app.ai.done'));
     } else if(HARD_FAIL.includes(r.code)){
       await doLogout(r.message);
     } else {
-      toast(r.message || 'ما قدرنا نولّد وصف، جرّب مرة ثانية');
+      toast(msgOf(r, 'app.ai.failed'));
     }
   }catch(err){
     console.error(err);
-    toast('فشل الاتصال بالخادم — تحقق من الإنترنت');
+    toast(t('common.offline'));
   }finally{
     btn.classList.remove('loading');
-    btn.textContent = '✨ اقترح وصف بالذكاء الاصطناعي';
+    btn.innerHTML = '<span aria-hidden="true">✨</span> ' + escapeHtml(t('app.ai.suggest'));
     updateAiButtonState();
   }
 });

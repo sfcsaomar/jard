@@ -149,6 +149,37 @@ try {
   await shot(app, 'app-offline');
   await phone.setOffline(false);
 
+  // ---------- the phone app in English ----------
+  const appRawKey = /\b(adm|common|co|app|acc)\.[a-zA-Z]+\.?[a-zA-Z]*\b/;
+  const arabicIn = (text) => text.replace(/شركة الاختبار|طاولة اجتماعات|العربية/g, '').match(/[\u0600-\u06FF]+/);
+  await app.evaluate(() => localStorage.setItem('aman_lang', 'en'));
+  await app.reload();
+  await app.waitForTimeout(1200);
+  let appText = await app.innerText('body');
+  ok(await app.evaluate(() => document.documentElement.dir) === 'ltr' && !appRawKey.test(appText) && !arabicIn(appText),
+    'app home (en): English, left to right' + (arabicIn(appText) ? ' — "' + arabicIn(appText)[0] + '"' : '') + (appRawKey.test(appText) ? ' — ' + appText.match(appRawKey)[0] : ''));
+  await shot(app, 'app-en-home');
+  await app.click('#addBtn');
+  await app.waitForSelector('#formSheet.open');
+  await app.click('#moreToggle');
+  await app.waitForTimeout(300);
+  appText = await app.innerText('#formSheet');
+  ok(!appRawKey.test(appText) && !arabicIn(appText) && appText.includes('Asset number'), 'app form (en): English labels' + (arabicIn(appText) ? ' — "' + arabicIn(appText)[0] + '"' : ''));
+  await shot(app, 'app-en-form', true);
+  await app.click('#saveBtn');
+  await app.waitForTimeout(300);
+  ok((await app.innerText('#toast')).includes('Enter the asset number') || (await app.innerText('#toast')).includes('Fill in the required'), 'app validation message in English: ' + (await app.innerText('#toast')));
+  await app.click('#closeFormBtn');
+  await app.click('#settingsBtn');
+  await app.waitForTimeout(400);
+  appText = await app.innerText('#settingsSheet');
+  ok(!appRawKey.test(appText) && !arabicIn(appText) && appText.includes('Interface language'), 'app settings (en): English' + (arabicIn(appText) ? ' — "' + arabicIn(appText)[0] + '"' : ''));
+  await shot(app, 'app-en-settings');
+  await app.click('#settingsSheet [data-lang-toggle]');
+  await app.waitForTimeout(1200);
+  ok(await app.evaluate(() => document.documentElement.dir) === 'rtl' && (await app.innerText('#addBtn')).includes('أصل جديد'), 'app language switch back to Arabic');
+  await shot(app, 'app-ar-home');
+
   // ---------- provider dashboard, Arabic and English ----------
   const rawKey = /\b(adm|common|co|app|acc)\.(?!admin\b)[a-zA-Z]+\.?[a-zA-Z]*\b/; // co.admin is a username
   await admin.goto('about:blank');

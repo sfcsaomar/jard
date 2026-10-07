@@ -304,3 +304,4 @@ main{padding:14px 16px 0;}
 .info-row{display:flex; justify-content:space-between; gap:10px; padding:11px 0; border-bottom:1px solid var(--line); font-size:14px;}
 .info-row span:first-child{color:var(--ink-soft);}
 .info-row span:last-child{font-weight:600; text-align:left;}
+.lang-link{background:none; border:none; color:var(--accent); font-family:inherit; font-size:13px; text-decoration:underline; cursor:pointer; padding:6px 4px; min-height:32px;}

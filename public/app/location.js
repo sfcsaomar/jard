@@ -5,7 +5,7 @@
 function renderLocationBar(building, location){
   const el = $('locText');
   if(!building && !location){
-    el.innerHTML = '<span class="loc-empty">لا يوجد موقع محدد</span>';
+    el.innerHTML = `<span class="loc-empty">${escapeHtml(t('app.loc.none'))}</span>`;
   } else {
     el.innerHTML = `<b>${escapeHtml(building||'—')}</b> · ${escapeHtml(location||'—')}`;
   }
@@ -30,7 +30,7 @@ $('saveLocationBtn').addEventListener('click', async ()=>{
   await setSetting('currentLocation', room);
   renderLocationBar(building, room);
   $('locationSheet').classList.remove('open');
-  toast('تم تحديث الموقع الحالي');
+  toast(t('app.loc.saved'));
 });
 
 // ---------- More fields toggle ----------

@@ -97,10 +97,10 @@ function renderLicenseBanner(){
   if(!session){ el.classList.remove('show'); return; }
   const msgs = [];
   const d = daysLeft(session.license.expiresAt);
-  if(d !== null && d <= 14) msgs.push(`تنتهي الرخصة خلال ${d} يوم. تواصل مع المزوّد للتجديد.`);
+  if(d !== null && d <= 14) msgs.push(t('app.lic.ending', {n: d}));
   const p = tokenPayload(session.token);
   const g = Math.ceil((p.exp - Date.now()) / 86400000);
-  if(g <= 2) msgs.push(`اتصل بالإنترنت خلال ${g} يوم لتجديد التحقق وإلا سيُطلب منك تسجيل الدخول.`);
+  if(g <= 2) msgs.push(t('app.lic.grace', {n: g}));
   if(backupMsg) msgs.push(backupMsg);
   el.textContent = msgs.join(' ');
   el.classList.toggle('show', msgs.length > 0);
@@ -110,21 +110,21 @@ $('loginForm').addEventListener('submit', async (e)=>{
   e.preventDefault();
   const username = $('lg_user').value.trim();
   const password = $('lg_pass').value;
-  if(!username || !password){ $('loginErr').textContent = 'أدخل اسم المستخدم وكلمة المرور'; return; }
-  if(!navigator.onLine){ $('loginErr').textContent = 'تسجيل الدخول يحتاج اتصالًا بالإنترنت'; return; }
+  if(!username || !password){ $('loginErr').textContent = t('app.login.missing'); return; }
+  if(!navigator.onLine){ $('loginErr').textContent = t('app.login.online'); return; }
   const btn = $('loginBtn');
-  btn.disabled = true; btn.textContent = 'جارٍ التحقق...';
+  btn.disabled = true; btn.textContent = t('app.login.checking');
   try{
     const r = await api('/api/login', {username, password, deviceId: deviceId()});
-    if(!r.ok){ $('loginErr').textContent = r.message || 'تعذّر تسجيل الدخول'; return; }
+    if(!r.ok){ $('loginErr').textContent = msgOf(r, 'common.signInFailed'); return; }
     session = {token: r.token, license: r.license, lastCheck: Date.now()};
     lsSet(SESSION_KEY, session);
     await enterApp();
-    toast('أهلًا ' + (r.license.displayName || r.license.username));
+    toast(t('app.login.welcome', {name: r.license.displayName || r.license.username}));
   }catch(err){
-    $('loginErr').textContent = 'تعذّر الاتصال بالخادم. تحقق من الإنترنت';
+    $('loginErr').textContent = t('common.offline');
   }finally{
-    btn.disabled = false; btn.textContent = 'دخول';
+    btn.disabled = false; btn.textContent = t('common.signInBtn');
   }
 });
 
@@ -136,26 +136,26 @@ function fillAccount(){
   $('acc_user').textContent = L.displayName ? `${L.displayName} (${L.username})` : L.username;
   $('acc_customer').textContent = L.customer || '—';
   $('acc_project').textContent = L.projectName || '—';
-  $('acc_expiry').textContent = L.expiresAt || 'غير محدد';
-  $('acc_ai').textContent = L.aiEnabled ? 'مفعّل' : 'غير مفعّل';
+  $('acc_expiry').textContent = L.expiresAt || t('app.acc.noExpiry');
+  $('acc_ai').textContent = L.aiEnabled ? t('app.acc.on') : t('common.off');
   $('acc_lang').textContent = userSettings().lang === 'en' ? 'English' : 'العربية';
   $('acc_checked').textContent = fmtDate(session.lastCheck);
-  $('acc_sync').textContent = !syncOn() ? 'غير مفعّلة' : syncState.error ? 'تعذّرت آخر محاولة' :
-    syncState.pending ? `${syncState.pending} بانتظار الرفع` : (syncState.lastOk ? 'كل الأصول مرفوعة' : '—');
+  $('acc_sync').textContent = !syncOn() ? t('common.off') : syncState.error ? t('app.sync.lastFailed') :
+    syncState.pending ? t('app.sync.pendingN', {n: syncState.pending}) : (syncState.lastOk ? t('app.sync.allUp') : '—');
   $('acc_grace').textContent = fmtDate(p.exp);
-  $('acc_storage').textContent = isStandalone() || storagePersisted === true ? 'مفعّلة' : 'غير مضمونة — أضف التطبيق للشاشة الرئيسية';
-  getSetting('lastBackupAt').then(v=> $('acc_backup').textContent = v ? new Date(Number(v) - new Date().getTimezoneOffset()*60000).toISOString().slice(0,16).replace('T',' ') : 'لم يتم بعد');
+  $('acc_storage').textContent = isStandalone() || storagePersisted === true ? t('app.acc.on') : t('app.acc.storageWeak');
+  getSetting('lastBackupAt').then(v=> $('acc_backup').textContent = v ? new Date(Number(v) - new Date().getTimezoneOffset()*60000).toISOString().slice(0,16).replace('T',' ') : t('app.acc.never'));
 }
 $('settingsBtn').addEventListener('click', ()=>{ fillAccount(); $('settingsSheet').classList.add('open'); });
 $('closeSettingsBtn').addEventListener('click', ()=> $('settingsSheet').classList.remove('open'));
 $('checkNowBtn').addEventListener('click', async ()=>{
-  if(!navigator.onLine){ toast('لا يوجد اتصال بالإنترنت'); return; }
+  if(!navigator.onLine){ toast(t('app.noInternet')); return; }
   const ok = await verifyOnline();
-  if(ok){ fillAccount(); toast('تم التحقق من الرخصة'); }
-  else if(session){ toast('تعذّر الوصول للخادم، حاول لاحقًا'); }
+  if(ok){ fillAccount(); toast(t('app.lic.checked')); }
+  else if(session){ toast(t('app.serverLater')); }
 });
 $('logoutBtn').addEventListener('click', async ()=>{
-  if(confirm('تسجيل الخروج؟ بياناتك تبقى محفوظة على هذا الجهاز، لكن تحتاج إنترنت للدخول مرة أخرى.')){
+  if(confirm(t('app.logoutConfirm'))){
     await doLogout('');
   }
 });

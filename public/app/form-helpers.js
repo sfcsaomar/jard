@@ -8,17 +8,17 @@ function a_hasMore(id){
 }
 
 // ---------- Duplicate barcode ----------
-const normTag = (t)=> String(t || '').trim().toLowerCase();
+const normTag = (v)=> String(v || '').trim().toLowerCase();
 function findDuplicate(tag){
-  const t = normTag(tag);
-  if(!t) return null;
-  return assets.find(a => normTag(a.tag) === t && a.id !== currentEditId && !isFlagged(a)) || null;
+  const key = normTag(tag);
+  if(!key) return null;
+  return assets.find(a => normTag(a.tag) === key && a.id !== currentEditId && !isFlagged(a)) || null;
 }
 function checkDuplicate(){
   const dup = findDuplicate($('f_tag').value);
   const el = $('dupWarn');
   if(dup){
-    el.innerHTML = `هذا الرقم مسجّل مسبقًا: ${escapeHtml(dup.name || 'بدون اسم')}${dup.location ? ' · ' + escapeHtml(dup.location) : ''} — <a id="openDupLink">فتح الأصل</a>`;
+    el.innerHTML = `${escapeHtml(t('app.dup.exists'))} ${escapeHtml(dup.name || t('app.noName'))}${dup.location ? ' · ' + escapeHtml(dup.location) : ''} · <a id="openDupLink">${escapeHtml(t('app.dup.open'))}</a>`;
     el.classList.add('show');
     $('openDupLink').addEventListener('click', ()=> openForm(dup.id));
   } else {
@@ -32,7 +32,7 @@ $('nextTagBtn').addEventListener('click', ()=> setTimeout(checkDuplicate, 50));
 // ---------- Copy from previous asset ----------
 $('copyPrevBtn').addEventListener('click', ()=>{
   const prev = assets.find(a=> !isFlagged(a));
-  if(!prev){ toast('لا يوجد أصل سابق'); return; }
+  if(!prev){ toast(t('app.copy.none')); return; }
   $('f_catcode').value = prev.catCode || '';
   $('f_subcat').value = prev.subCategory || '';
   $('f_subcatcode').value = prev.subCategoryCode || '';
@@ -43,5 +43,5 @@ $('copyPrevBtn').addEventListener('click', ()=>{
   $('f_value').value = prev.value || '';
   setCondition(prev.condition || '');
   updateDescMeta();
-  toast(`تم نسخ بيانات ${prev.tag} — امسح الرقم وصوّر فقط`);
+  toast(t('app.copy.done', {tag: prev.tag}));
 });
