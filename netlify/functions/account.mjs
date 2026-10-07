@@ -3,9 +3,10 @@
 import crypto from 'node:crypto';
 import { err, json, readBody, db, hashPassword, normUser, handler } from '../lib/common.mjs';
 import { sendInvite, notify } from '../lib/accounts.mjs';
+import { toEnglish } from '../lib/messages-en.mjs';
 import { sendMail, templates, newToken, hashToken, linkFor, LINK_MINUTES, normEmail } from '../lib/mail.mjs';
 
-const ok = (body = {}) => json(200, { ok: true, ...body });
+const ok = (body = {}) => json(200, { ok: true, ...body, ...(body.message ? { messageEn: toEnglish(body.message) } : {}) });
 const BAD_LINK = 'الرابط غير صالح أو انتهت صلاحيته أو استُخدم من قبل. اطلب رابطًا جديدًا';
 const minLengthFor = (role) => (role === 'super' ? 10 : 8);
 const ipOf = (req, context) => String(context?.ip || req.headers.get('x-nf-client-connection-ip') || req.headers.get('x-forwarded-for') || 'unknown').split(',')[0].trim();

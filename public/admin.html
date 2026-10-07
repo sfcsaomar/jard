@@ -4,207 +4,303 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="robots" content="noindex, nofollow">
-<title>AMAN · لوحة المزوّد</title>
+<title>AMAN · Provider</title>
 <link rel="icon" href="/icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <meta name="theme-color" content="#01345A">
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/panel.css">
+<script src="/i18n/ar.js"></script>
+<script src="/i18n/en.js"></script>
+<script src="/i18n/i18n.js"></script>
 </head>
 <body>
 
+<!-- ================= sign-in ================= -->
 <div class="login" id="loginView">
- <div class="login-brand"><img src="/brand/aman-logo-on-dark.svg" alt="AMAN"><div class="ctx">لوحة المزوّد · إدارة التراخيص</div></div>
+ <div class="login-brand"><img src="/brand/aman-logo-on-dark.svg" alt="AMAN"><div class="ctx" data-i18n="adm.loginCtx"></div></div>
  <div class="login-card">
-  <h2>تسجيل الدخول</h2>
-  <p class="sub">ادخل باسم المستخدم وكلمة المرور.</p>
+  <h2 data-i18n="common.signIn"></h2>
+  <p class="sub" data-i18n="adm.loginHint"></p>
   <form id="loginForm">
-    <input id="adminUser" dir="ltr" autocapitalize="none" autocomplete="username" placeholder="اسم المستخدم">
-    <input type="password" id="adminPass" autocomplete="current-password" dir="ltr" placeholder="كلمة المرور">
+    <label for="adminUser" data-i18n="common.username"></label>
+    <input id="adminUser" dir="ltr" autocapitalize="none" autocomplete="username">
+    <label for="adminPass" data-i18n="common.password"></label>
+    <input type="password" id="adminPass" autocomplete="current-password" dir="ltr">
     <div class="form-err" id="loginErr"></div>
-    <button class="btn btn-primary" style="width:100%" type="submit">دخول</button>
+    <button class="btn btn-primary" style="width:100%" type="submit" data-i18n="common.signInBtn"></button>
   </form>
-  <p style="text-align:center; margin-top:12px; font-size:13px"><a href="/account">نسيت كلمة المرور؟</a></p>
-  <p class="hint" style="margin-top:16px">
-    <b>دخول الطوارئ:</b> اترك اسم المستخدم فارغًا، واكتب كلمة المرور المحفوظة في Netlify باسم <span class="mono">ADMIN_PASSWORD</span>.
-    استخدمه لإنشاء أول حساب، أو إذا نسيت كلمة مرورك.
-  </p>
+  <p style="text-align:center; margin-top:12px; font-size:13px"><a href="/account" data-i18n="common.forgot"></a></p>
+  <p class="hint" style="margin-top:16px" data-i18n-html="adm.emergencyHelp"></p>
  </div>
+ <div class="lang-row"><button class="lang-btn" type="button" data-lang-toggle></button></div>
 </div>
 
-<div id="appView" style="display:none">
-<div class="brandbar"><div class="inner"><img src="/brand/aman-wordmark-on-dark.svg" alt="AMAN"><span class="sep"></span><span class="ctx">لوحة المزوّد</span></div></div>
-<div class="wrap">
-  <header>
-    <div>
-      <h1>إدارة التراخيص</h1>
-      <div class="sub">الشركات ورخصها وحسابات مديريها · استهلاك الذكاء الاصطناعي لشهر <span class="mono" id="monthLbl"></span></div>
-    </div>
-    <div class="actions">
-      <span class="sub" id="meLbl"></span>
-      <button class="btn btn-ghost" id="reloadBtn">تحديث</button>
-      <button class="btn btn-ghost" id="logoutBtn">خروج</button>
-    </div>
-  </header>
-
-  <div class="card" id="noticeCard" hidden style="border-color:var(--bad-line); background:var(--bad-bg);"></div>
-  <div class="card" id="storageCard" hidden>
-    <div class="card-head" style="margin-bottom:6px">
-      <h2>تخزين الصور</h2>
-      <button class="btn btn-ghost btn-sm" id="cleanupBtn" hidden>حذف صور الشركات المحذوفة</button>
-    </div>
-    <div class="sub" id="storageText"></div>
-    <div class="bar" style="height:8px"><i id="storageBar" style="width:0"></i></div>
-  </div>
-  <div class="card" id="emgCard" hidden style="border-color:var(--bad-line); background:var(--bad-bg);">
-    <b>أنت داخل بكلمة الطوارئ.</b>
-    <span class="sub" style="color:var(--warn)">أنشئ حسابًا باسمك من «حسابات المزوّد» بالأسفل، ثم ادخل به. كلمة الطوارئ تبقى للاستعادة فقط.</span>
-  </div>
-
-  <div class="card">
-    <div class="card-head">
-      <h2>الشركات</h2>
-      <div class="actions" style="flex:1; justify-content:flex-end;">
-        <input id="search" placeholder="بحث باسم الشركة" style="max-width:240px;">
-        <button class="btn btn-primary" id="newCoBtn">+ شركة جديدة</button>
+<!-- ================= app ================= -->
+<div class="shell" id="appView" style="display:none">
+  <aside class="side" id="side">
+    <div class="side-brand"><img src="/brand/aman-wordmark-on-dark.svg" alt="AMAN"><span data-i18n="adm.panelName"></span></div>
+    <nav id="nav">
+      <a href="#home" data-route="home"><svg viewBox="0 0 24 24"><path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/><path d="M10 20v-6h4v6"/></svg><span data-i18n="adm.nav.home"></span></a>
+      <a href="#companies" data-route="companies"><svg viewBox="0 0 24 24"><path d="M4 21V5l8-2v18"/><path d="M12 9h8v12"/><path d="M7 8h2M7 12h2M7 16h2M15 13h2M15 17h2"/><path d="M2 21h20"/></svg><span data-i18n="adm.nav.companies"></span><b class="count" id="navCoCount" hidden></b></a>
+      <a href="#providers" data-route="providers"><svg viewBox="0 0 24 24"><path d="M12 3l8 3v6c0 4.5-3.4 8.2-8 9-4.6-.8-8-4.5-8-9V6z"/><path d="M9 12l2 2 4-4"/></svg><span data-i18n="adm.nav.providers"></span></a>
+      <a href="#claude" data-route="claude"><svg viewBox="0 0 24 24"><path d="M12 3v4M12 17v4M3 12h4M17 12h4M5.6 5.6l2.8 2.8M15.6 15.6l2.8 2.8M18.4 5.6l-2.8 2.8M8.4 15.6l-2.8 2.8"/></svg><span data-i18n="adm.nav.claude"></span><b class="count" id="navAiWarn" hidden>!</b></a>
+      <a href="#storage" data-route="storage"><svg viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5"/><path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></svg><span data-i18n="adm.nav.storage"></span></a>
+      <div class="nav-sep"></div>
+      <a href="#account" data-route="account"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg><span data-i18n="adm.nav.account"></span></a>
+    </nav>
+    <div class="side-foot">
+      <div class="who" id="meLbl"></div>
+      <div class="row">
+        <button type="button" data-lang-toggle></button>
+        <button type="button" id="logoutBtn" data-i18n="common.signOut"></button>
       </div>
     </div>
-    <p class="hint" style="margin-top:0">
-      الترتيب: تنشئ الشركة ورخصتها (عدد الأشهر والحدود)، ثم تضيف حساب مدير الشركة. مدير الشركة يدخل من
-      <span class="mono" id="companyUrl"></span> وينشئ المشاريع والمستخدمين بنفسه ضمن حدود الرخصة.
-    </p>
-    <div id="coList"></div>
-  </div>
+  </aside>
+  <div class="side-scrim" id="scrim"></div>
 
-  <div class="card" style="max-width:820px">
-    <div class="card-head">
-      <div><h2>حسابات المزوّد</h2><div class="sub">من يستطيع الدخول لهذه اللوحة. كلمات المرور محفوظة مشفّرة في قاعدة البيانات.</div></div>
-      <div class="actions">
-        <button class="btn btn-ghost" id="myPassBtn">تغيير كلمة مروري</button>
-        <button class="btn btn-primary" id="newSuperBtn">+ حساب مزوّد</button>
-      </div>
+  <div class="main">
+    <header class="topbar">
+      <button class="menu-btn" id="menuBtn" type="button" data-i18n-title="common.menu"><svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
+      <h1 id="pageTitle"></h1>
+      <span class="spacer"></span>
+      <button class="btn btn-ghost btn-sm" id="reloadBtn" data-i18n="common.refresh"></button>
+      <div class="sub" id="pageSub"></div>
+    </header>
+
+    <div class="content">
+      <div id="notices"></div>
+
+      <!-- ---------- home ---------- -->
+      <section class="page" data-page="home" hidden>
+        <div class="kpis" id="homeKpis"></div>
+        <div class="cols">
+          <div class="stack">
+            <div class="card">
+              <div class="card-head"><h2><span data-i18n="adm.home.assetsDaily"></span> <small data-i18n="common.last30"></small></h2></div>
+              <div id="chartAssets"></div>
+            </div>
+            <div class="card">
+              <div class="card-head"><h2 data-i18n="adm.home.byCompany"></h2><a href="#companies" class="sub" data-i18n="common.viewAll"></a></div>
+              <div class="table-wrap"><table>
+                <thead><tr><th data-i18n="adm.col.company"></th><th data-i18n="common.status"></th><th data-i18n="adm.col.assets"></th><th data-i18n="adm.col.week"></th><th data-i18n="adm.col.lastSync"></th></tr></thead>
+                <tbody id="homeCoBody"></tbody>
+              </table></div>
+            </div>
+          </div>
+          <div class="stack">
+            <div class="card"><div class="card-head"><h2 data-i18n="adm.home.attention"></h2></div><div class="list" id="attentionList"></div></div>
+            <div class="card"><div class="card-head"><h2 data-i18n="adm.home.pending"></h2></div><div class="list" id="pendingList"></div></div>
+            <div class="card"><div class="card-head"><h2 data-i18n="adm.home.recent"></h2></div><div class="list" id="recentList"></div></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ---------- companies ---------- -->
+      <section class="page" data-page="companies" hidden>
+        <div class="toolbar">
+          <input id="search" class="search" data-i18n-ph="adm.searchCompany" type="search">
+          <div class="chips" id="coFilters"></div>
+          <span class="spacer"></span>
+          <button class="btn btn-primary" id="newCoBtn" data-i18n="adm.newCompany"></button>
+        </div>
+        <div class="card">
+          <div class="table-wrap"><table>
+            <thead><tr>
+              <th data-i18n="adm.col.company"></th><th data-i18n="common.status"></th><th data-i18n="adm.col.ends"></th>
+              <th data-i18n="adm.col.users"></th><th data-i18n="adm.col.projects"></th><th data-i18n="adm.col.assets"></th>
+              <th data-i18n="adm.col.aiMonth"></th><th data-i18n="adm.col.lastSync"></th>
+            </tr></thead>
+            <tbody id="coBody"></tbody>
+          </table></div>
+        </div>
+        <p class="hint" id="coHint"></p>
+      </section>
+
+      <!-- ---------- one company ---------- -->
+      <section class="page" data-page="company" hidden>
+        <a href="#companies" class="back"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg><span data-i18n="adm.backCompanies"></span></a>
+        <div id="coDetail"></div>
+      </section>
+
+      <!-- ---------- providers ---------- -->
+      <section class="page" data-page="providers" hidden>
+        <div class="card">
+          <div class="card-head">
+            <div><h2 data-i18n="adm.prov.title"></h2><div class="sub" data-i18n="adm.prov.sub"></div></div>
+            <button class="btn btn-primary" id="newSuperBtn" data-i18n="adm.prov.new"></button>
+          </div>
+          <div class="table-wrap"><table>
+            <thead><tr><th data-i18n="common.username"></th><th data-i18n="common.name"></th><th data-i18n="common.email"></th><th data-i18n="common.status"></th><th data-i18n="common.lastLogin"></th><th></th></tr></thead>
+            <tbody id="superBody"></tbody>
+          </table></div>
+        </div>
+        <p class="hint" data-i18n="adm.prov.hint"></p>
+      </section>
+
+      <!-- ---------- Claude ---------- -->
+      <section class="page" data-page="claude" hidden>
+        <div class="kpis" id="aiKpis"></div>
+        <div id="aiSetup"></div>
+        <div class="cols">
+          <div class="stack">
+            <div class="card">
+              <div class="card-head"><h2><span data-i18n="adm.ai.daily"></span> <small data-i18n="common.last30"></small></h2><button class="btn btn-ghost btn-sm" id="aiFreshBtn" data-i18n="adm.ai.fresh"></button></div>
+              <div id="chartCost"></div>
+              <div class="sub" id="aiUpdated"></div>
+            </div>
+            <div class="card">
+              <div class="card-head"><h2 data-i18n="adm.ai.perCompany"></h2></div>
+              <div class="table-wrap"><table>
+                <thead><tr><th data-i18n="adm.col.company"></th><th data-i18n="adm.ai.requests"></th><th data-i18n="adm.ai.cap"></th><th data-i18n="adm.ai.share"></th></tr></thead>
+                <tbody id="aiCoBody"></tbody>
+              </table></div>
+            </div>
+          </div>
+          <div class="stack">
+            <form class="card" id="balanceForm">
+              <h2 data-i18n="adm.ai.balanceTitle"></h2>
+              <p class="hint" data-i18n="adm.ai.balanceHint"></p>
+              <div class="grid" style="grid-template-columns:1fr 1fr">
+                <div><label for="b_usd" data-i18n="adm.ai.balanceUsd"></label><input id="b_usd" type="number" min="0" step="0.01" dir="ltr" required></div>
+                <div><label for="b_date" data-i18n="adm.ai.balanceDate"></label><input id="b_date" type="date" dir="ltr" required></div>
+                <div style="grid-column:1/-1"><label for="b_warn" data-i18n="adm.ai.warnAt"></label><input id="b_warn" type="number" min="0" step="1" dir="ltr" value="20"></div>
+              </div>
+              <div class="form-err" id="balanceErr"></div>
+              <button class="btn btn-primary" type="submit" data-i18n="common.save"></button>
+            </form>
+            <div class="card">
+              <h2 data-i18n="adm.ai.months"></h2>
+              <div id="chartAiMonths"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ---------- storage ---------- -->
+      <section class="page" data-page="storage" hidden>
+        <div class="kpis" id="stKpis"></div>
+        <div class="card">
+          <div class="card-head" style="margin-bottom:6px">
+            <h2 data-i18n="adm.st.title"></h2>
+            <button class="btn btn-ghost btn-sm" id="cleanupBtn" hidden data-i18n="adm.st.cleanup"></button>
+          </div>
+          <div class="sub" id="storageText"></div>
+          <div class="bar" style="height:10px"><i id="storageBar" style="width:0"></i></div>
+          <p class="hint" data-i18n="adm.st.hint"></p>
+        </div>
+      </section>
+
+      <!-- ---------- my account ---------- -->
+      <section class="page" data-page="account" hidden>
+        <form class="card" id="myForm" style="max-width:520px">
+          <h2 data-i18n="adm.nav.account"></h2>
+          <div class="grid" style="grid-template-columns:1fr">
+            <div><label for="my_display" data-i18n="common.displayName"></label><input id="my_display"></div>
+            <div><label for="my_email" data-i18n="common.email"></label><input id="my_email" type="email" dir="ltr" required><div class="sub" id="my_emailState" style="font-size:12px;margin-top:4px"></div></div>
+            <div class="section-title" style="margin-top:4px" data-i18n="common.changePassword"></div>
+            <div><label for="my_cur" data-i18n="common.currentPassword"></label><input id="my_cur" type="password" dir="ltr" autocomplete="current-password"></div>
+            <div><label for="my_new" data-i18n="adm.newPassword10"></label><input id="my_new" type="password" dir="ltr" autocomplete="new-password"></div>
+          </div>
+          <div class="form-err" id="myErr"></div>
+          <div class="modal-foot"><button class="btn btn-primary" type="submit" data-i18n="common.save"></button></div>
+        </form>
+      </section>
     </div>
-    <div class="table-wrap"><table>
-      <thead><tr><th>اسم المستخدم</th><th>الاسم</th><th>البريد</th><th>الحالة</th><th>آخر دخول</th><th></th></tr></thead>
-      <tbody id="superBody"></tbody>
-    </table></div>
   </div>
 </div>
-</div>
 
-<!-- Provider admin modal -->
+<!-- ================= windows ================= -->
 <div class="modal-bg" id="supModal">
   <form class="modal" id="supForm" style="max-width:520px">
-    <h2 id="supTitle">حساب مزوّد جديد</h2>
+    <h2 id="supTitle"></h2>
     <div class="grid">
-      <div><label>اسم المستخدم</label><input id="s_username" dir="ltr" autocapitalize="none" required></div>
-      <div><label>الاسم الظاهر</label><input id="s_display"></div>
-      <div style="grid-column:1/-1"><label>البريد الإلكتروني</label><input id="s_email" type="email" dir="ltr" required autocomplete="off"></div>
-      <div><label id="s_passLbl">كلمة المرور (10 أحرف على الأقل)</label><input id="s_password" dir="ltr" autocomplete="new-password"></div>
-      <div style="align-self:end"><button type="button" class="btn btn-ghost btn-sm" id="sGenBtn">توليد كلمة مرور</button></div>
-      <div class="check"><input type="checkbox" id="s_active" checked><label for="s_active">الحساب فعّال</label></div>
+      <div><label for="s_username" data-i18n="common.username"></label><input id="s_username" dir="ltr" autocapitalize="none" required></div>
+      <div><label for="s_display" data-i18n="common.displayName"></label><input id="s_display"></div>
+      <div style="grid-column:1/-1"><label for="s_email" data-i18n="common.email"></label><input id="s_email" type="email" dir="ltr" required autocomplete="off"></div>
+      <div><label for="s_password" id="s_passLbl"></label><input id="s_password" dir="ltr" autocomplete="new-password"></div>
+      <div style="align-self:end"><button type="button" class="btn btn-ghost btn-sm" id="sGenBtn" data-i18n="common.genPassword"></button></div>
+      <div class="check"><input type="checkbox" id="s_active" checked><label for="s_active" data-i18n="common.accountActive"></label></div>
     </div>
-    <p class="hint">اترك كلمة المرور فارغة لإرسال دعوة إلى البريد، فيضع صاحب الحساب كلمة مروره بنفسه. وإن وضعتها هنا فاحفظها؛ لا يمكن عرضها لاحقًا.</p>
+    <p class="hint" data-i18n="adm.prov.formHint"></p>
     <div class="form-err" id="supErr"></div>
     <div class="modal-foot">
-      <button class="btn btn-primary" type="submit">حفظ</button>
-      <button class="btn btn-ghost" type="button" data-close>إلغاء</button>
+      <button class="btn btn-primary" type="submit" data-i18n="common.save"></button>
+      <button class="btn btn-ghost" type="button" data-close data-i18n="common.cancel"></button>
     </div>
   </form>
 </div>
 
-<!-- My password modal -->
-<div class="modal-bg" id="myModal">
-  <form class="modal" id="myForm" style="max-width:440px">
-    <h2>حسابي</h2>
-    <div class="grid" style="grid-template-columns:1fr">
-      <div><label>الاسم الظاهر</label><input id="my_display"></div>
-      <div><label>البريد الإلكتروني</label><input id="my_email" type="email" dir="ltr" required><div class="sub" id="my_emailState" style="font-size:12px;margin-top:4px"></div></div>
-      <div class="section-title" style="margin-top:4px">تغيير كلمة المرور (اختياري)</div>
-      <div><label>كلمة المرور الحالية</label><input id="my_cur" type="password" dir="ltr" autocomplete="current-password"></div>
-      <div><label>كلمة المرور الجديدة (10 أحرف على الأقل)</label><input id="my_new" type="password" dir="ltr" autocomplete="new-password"></div>
-    </div>
-    <div class="form-err" id="myErr"></div>
-    <div class="modal-foot">
-      <button class="btn btn-primary" type="submit">حفظ</button>
-      <button class="btn btn-ghost" type="button" data-close>إلغاء</button>
-    </div>
-  </form>
-</div>
-
-<!-- Company modal -->
 <div class="modal-bg" id="coModal">
   <form class="modal" id="coForm">
-    <h2 id="coTitle">شركة جديدة</h2>
+    <h2 id="coTitle"></h2>
     <input type="hidden" id="c_id">
     <div class="grid">
-      <div style="grid-column:1/-1"><label>اسم الشركة</label><input id="c_name" required></div>
-      <div><label>اسم المسؤول</label><input id="c_contact"></div>
-      <div><label>الجوال</label><input id="c_phone" dir="ltr"></div>
-      <div><label>البريد</label><input id="c_email" dir="ltr" type="email"></div>
-
-      <div class="section-title">الرخصة</div>
-      <div><label>تاريخ البداية</label><input id="c_start" type="date" required></div>
-      <div><label>المدة بالأشهر</label><input id="c_months" type="number" min="1" max="120" value="12" required></div>
-      <div><label>تنتهي في</label><input id="c_end" class="mono" readonly tabindex="-1" style="background:var(--muted)"></div>
-      <div><label>أقصى عدد مستخدمين ميدانيين</label><input id="c_maxUsers" type="number" min="1" value="1"></div>
-      <div><label>أجهزة لكل مستخدم</label><input id="c_maxDevices" type="number" min="1" value="1"></div>
-      <div><label>حد طلبات AI شهريًا (0 = بلا حد)</label><input id="c_aiCap" type="number" min="0" value="300"></div>
-      <div class="check"><input type="checkbox" id="c_ai" checked><label for="c_ai">الذكاء الاصطناعي مفعّل</label></div>
-      <div class="check"><input type="checkbox" id="c_active" checked><label for="c_active">الشركة فعّالة</label></div>
-      <div style="grid-column:1/-1"><label>ملاحظات داخلية (سعر، رقم العقد...) لا تظهر للعميل</label><textarea id="c_notes" rows="2"></textarea></div>
+      <div style="grid-column:1/-1"><label for="c_name" data-i18n="adm.co.name"></label><input id="c_name" required></div>
+      <div><label for="c_contact" data-i18n="adm.co.contact"></label><input id="c_contact"></div>
+      <div><label for="c_phone" data-i18n="adm.co.phone"></label><input id="c_phone" dir="ltr"></div>
+      <div><label for="c_email" data-i18n="common.email"></label><input id="c_email" dir="ltr" type="email"></div>
+      <div class="section-title" data-i18n="adm.co.licence"></div>
+      <div><label for="c_start" data-i18n="adm.co.start"></label><input id="c_start" type="date" dir="ltr" required></div>
+      <div><label for="c_months" data-i18n="adm.co.months"></label><input id="c_months" type="number" min="1" max="120" value="12" dir="ltr" required></div>
+      <div><label for="c_end" data-i18n="adm.co.ends"></label><input id="c_end" class="mono" readonly tabindex="-1" style="background:var(--muted)" dir="ltr"></div>
+      <div><label for="c_maxUsers" data-i18n="adm.co.maxUsers"></label><input id="c_maxUsers" type="number" min="1" value="1" dir="ltr"></div>
+      <div><label for="c_maxDevices" data-i18n="adm.co.maxDevices"></label><input id="c_maxDevices" type="number" min="1" value="1" dir="ltr"></div>
+      <div><label for="c_aiCap" data-i18n="adm.co.aiCap"></label><input id="c_aiCap" type="number" min="0" value="300" dir="ltr"></div>
+      <div class="check"><input type="checkbox" id="c_ai" checked><label for="c_ai" data-i18n="adm.co.aiOn"></label></div>
+      <div class="check"><input type="checkbox" id="c_active" checked><label for="c_active" data-i18n="adm.co.active"></label></div>
+      <div style="grid-column:1/-1"><label for="c_notes" data-i18n="adm.co.notes"></label><textarea id="c_notes" rows="2"></textarea></div>
     </div>
     <div class="form-err" id="coErr"></div>
     <div class="modal-foot">
-      <button class="btn btn-primary" type="submit">حفظ</button>
-      <button class="btn btn-ghost" type="button" data-close>إلغاء</button>
+      <button class="btn btn-primary" type="submit" data-i18n="common.save"></button>
+      <button class="btn btn-ghost" type="button" data-close data-i18n="common.cancel"></button>
     </div>
   </form>
 </div>
 
-<!-- Renew modal -->
 <div class="modal-bg" id="renewModal">
   <form class="modal" id="renewForm" style="max-width:420px">
-    <h2>تجديد الرخصة</h2>
+    <h2 data-i18n="adm.renew.title"></h2>
     <p class="sub" id="renewInfo"></p>
     <input type="hidden" id="r_id">
-    <label>عدد الأشهر المضافة</label>
-    <input id="r_months" type="number" min="1" max="120" value="12">
+    <label for="r_months" data-i18n="adm.renew.months"></label>
+    <input id="r_months" type="number" min="1" max="120" value="12" dir="ltr">
     <p class="hint" id="renewPreview"></p>
     <div class="form-err" id="renewErr"></div>
     <div class="modal-foot">
-      <button class="btn btn-primary" type="submit">تجديد</button>
-      <button class="btn btn-ghost" type="button" data-close>إلغاء</button>
+      <button class="btn btn-primary" type="submit" data-i18n="adm.renew.btn"></button>
+      <button class="btn btn-ghost" type="button" data-close data-i18n="common.cancel"></button>
     </div>
   </form>
 </div>
 
-<!-- Company admin modal -->
 <div class="modal-bg" id="adModal">
   <form class="modal" id="adForm" style="max-width:520px">
-    <h2 id="adTitle">مدير شركة جديد</h2>
+    <h2 id="adTitle"></h2>
     <p class="sub" id="adCompany"></p>
     <input type="hidden" id="a_company">
     <div class="grid">
-      <div><label>اسم المستخدم</label><input id="a_username" dir="ltr" autocapitalize="none" required></div>
-      <div><label>الاسم الظاهر</label><input id="a_display"></div>
-      <div style="grid-column:1/-1"><label>البريد الإلكتروني</label><input id="a_email" type="email" dir="ltr" required autocomplete="off"><div class="sub" id="a_emailState" style="font-size:12px;margin-top:4px"></div></div>
-      <div><label id="a_passLbl">كلمة المرور</label><input id="a_password" dir="ltr" autocomplete="new-password"></div>
-      <div style="align-self:end"><button type="button" class="btn btn-ghost btn-sm" id="aGenBtn">توليد كلمة مرور</button></div>
-      <div class="check"><input type="checkbox" id="a_active" checked><label for="a_active">الحساب فعّال</label></div>
+      <div><label for="a_username" data-i18n="common.username"></label><input id="a_username" dir="ltr" autocapitalize="none" required></div>
+      <div><label for="a_display" data-i18n="common.displayName"></label><input id="a_display"></div>
+      <div style="grid-column:1/-1"><label for="a_email" data-i18n="common.email"></label><input id="a_email" type="email" dir="ltr" required autocomplete="off"><div class="sub" id="a_emailState" style="font-size:12px;margin-top:4px"></div></div>
+      <div><label for="a_password" id="a_passLbl"></label><input id="a_password" dir="ltr" autocomplete="new-password"></div>
+      <div style="align-self:end"><button type="button" class="btn btn-ghost btn-sm" id="aGenBtn" data-i18n="common.genPassword"></button></div>
+      <div class="check"><input type="checkbox" id="a_active" checked><label for="a_active" data-i18n="common.accountActive"></label></div>
     </div>
-    <p class="hint">اسم المستخدم بالإنجليزية الصغيرة (3-40 حرفًا). اترك كلمة المرور فارغة لإرسال دعوة إلى بريد مدير الشركة ليضع كلمة مروره بنفسه (موصى به). وإن وضعتها، تُنسخ بيانات الدخول لترسلها له.</p>
+    <p class="hint" data-i18n="adm.admin.hint"></p>
     <div class="form-err" id="adErr"></div>
     <div class="modal-foot">
-      <button class="btn btn-primary" type="submit">حفظ</button>
-      <button class="btn btn-ghost" type="button" data-close>إلغاء</button>
+      <button class="btn btn-primary" type="submit" data-i18n="common.save"></button>
+      <button class="btn btn-ghost" type="button" data-close data-i18n="common.cancel"></button>
     </div>
   </form>
 </div>
 
-<div class="toast" id="toast"></div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <script src="/panel/common.js"></script>
+<script src="/panel/charts.js"></script>
 <script src="/panel/admin.js"></script>
 </body>
 </html>

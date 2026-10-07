@@ -80,6 +80,11 @@ export const db = {
   tokPeek: (hash) => rpc('tok_peek', { p_hash: hash }),
   tokConsume: (hash, purpose) => rpc('tok_consume', { p_hash: hash, p_purpose: purpose }),
 
+  metaGet: (key) => rpc('meta_get', { p_key: key }),
+  metaSet: (key, value) => rpc('meta_set', { p_key: key, p_value: value }),
+  dashProvider: (days = 30) => rpc('dash_provider', { p_days: days }),
+  dashCompany: (companyId, days = 30) => rpc('dash_company', { p_company: companyId, p_days: days }),
+
   storageUsage: () => rpc('storage_usage', {}),
   photoPaths: (companyId, limit = 1000) => rpc('photo_paths', { p_company: companyId ?? null, p_limit: limit })
 };

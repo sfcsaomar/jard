@@ -39,7 +39,9 @@ try {
   await admin.fill('#adminPass', 'emergency-pass-123');
   await admin.click('#loginForm button');
   await admin.waitForSelector('#appView', { state: 'visible' });
-  ok(await admin.isVisible('#emgCard'), 'emergency sign-in shows the warning card');
+  ok((await admin.innerText('#notices')).includes('الطوارئ'), 'emergency sign-in shows the warning');
+  ok(admin.url().endsWith('#providers') || await admin.isVisible('[data-page=providers]'), 'emergency sign-in opens the providers page');
+  await admin.click('#nav a[data-route=providers]');
   await admin.click('#newSuperBtn');
   await admin.fill('#s_username', 'omar'); await admin.fill('#s_display', 'عمر'); await admin.fill('#s_email', 'omar@example.com');
   await admin.click('#supForm button[type=submit]');
@@ -60,16 +62,17 @@ try {
   await admin.fill('#adminUser', 'omar'); await admin.fill('#adminPass', 'omarpass12345'); await admin.click('#loginForm button');
   await admin.waitForSelector('#appView', { state: 'visible' });
   await admin.waitForTimeout(400);
-  ok(await admin.isHidden('#noticeCard'), 'provider signs in with own account');
+  ok((await admin.locator('#notices .notice').count()) === 0, 'provider signs in with own account (no warnings)');
 
   // company and its admin
+  await admin.click('#nav a[data-route=companies]');
   await admin.click('#newCoBtn'); await admin.fill('#c_name', 'شركة الاختبار'); await admin.click('#coForm button[type=submit]');
   await admin.waitForSelector('#adModal.open');
   await admin.fill('#a_username', 'co.admin'); await admin.fill('#a_email', 'co@acme.com');
   await admin.click('#adForm button[type=submit]');
   await admin.waitForTimeout(700);
   ok((await sql("select count(*) n from companies"))[0].n == 1, 'company created');
-  await shot(admin, 'admin-panel', true);
+  ok(admin.url().includes('#company/') && (await admin.innerText('#coDetail')).includes('co.admin'), 'new company opens on its own page with its admin');
 
   // ---------- company panel ----------
   const co = watch(await desk.newPage(), 'company');
@@ -145,6 +148,62 @@ try {
   ok(styled === 'rgb(1, 52, 90)', 'offline: styles load (navy top bar)');
   await shot(app, 'app-offline');
   await phone.setOffline(false);
+
+  // ---------- provider dashboard, Arabic and English ----------
+  const rawKey = /\b(adm|common|co|app|acc)\.(?!admin\b)[a-zA-Z]+\.?[a-zA-Z]*\b/; // co.admin is a username
+  await admin.goto('about:blank');
+  await admin.goto(B + '/admin#home');
+  await admin.waitForSelector('#homeKpis .kpi');
+  await admin.waitForTimeout(900);
+  ok((await admin.innerText('#homeKpis')).includes('1'), 'home shows the numbers');
+  ok(await admin.locator('#chartAssets svg rect.cbar').count() === 30, 'home chart: 30 days');
+  await shot(admin, 'admin-home', true);
+  for (const page of ['companies', 'providers', 'claude', 'storage', 'account']) {
+    await admin.goto(B + '/admin#' + page);
+    await admin.waitForTimeout(500);
+    const text = await admin.innerText('body');
+    ok(!rawKey.test(text), `admin ${page} (ar): no raw text keys` + (rawKey.test(text) ? ' — ' + text.match(rawKey)[0] : ''));
+    await shot(admin, 'admin-' + page, true);
+  }
+  await admin.goto(B + '/admin#claude');
+  await admin.waitForTimeout(300);
+  ok((await admin.innerText('#aiKpis')).includes('$'), 'Claude page shows the spend');
+  await admin.fill('#b_usd', '100'); await admin.fill('#b_date', new Date(Date.now() - 2 * 86400000).toISOString().slice(0, 10));
+  await admin.click('#balanceForm button[type=submit]');
+  await admin.waitForTimeout(700);
+  ok((await admin.innerText('#aiKpis')).includes('95.50'), 'balance saved and remaining shown');
+  const coId = (await sql('select id from companies'))[0].id;
+  await admin.goto(B + '/admin#company/' + coId);
+  await admin.waitForTimeout(500);
+  await shot(admin, 'admin-company', true);
+
+  await admin.evaluate(() => localStorage.setItem('aman_lang', 'en'));
+  await admin.goto('about:blank');
+  for (const page of ['home', 'companies', 'company/' + coId, 'providers', 'claude', 'storage', 'account']) {
+    await admin.goto(B + '/admin#' + page);
+    await admin.waitForTimeout(700);
+    const text = await admin.innerText('body');
+    ok(!rawKey.test(text) && !/[\u0600-\u06FF]/.test(text.replace(/شركة الاختبار|عمر|العربية/g, '')), `admin ${page} (en): English only, no raw keys` + (rawKey.test(text) ? ' — ' + text.match(rawKey)[0] : ''));
+    await shot(admin, 'admin-en-' + page.split('/')[0], true);
+  }
+  ok(await admin.evaluate(() => document.documentElement.dir) === 'ltr', 'English pages run left to right');
+  await admin.goto(B + '/admin#home');
+  await admin.waitForTimeout(300);
+  await admin.click('#side [data-lang-toggle]');
+  await admin.waitForTimeout(800);
+  ok(await admin.evaluate(() => document.documentElement.dir) === 'rtl', 'language switch goes back to Arabic');
+
+  // the provider panel on a phone: menu opens from the button
+  const small = watch(await phone.newPage(), 'admin-phone');
+  await small.goto(B + '/admin#home');
+  await small.fill('#adminUser', 'omar'); await small.fill('#adminPass', 'omarpass12345'); await small.click('#loginForm button');
+  await small.waitForSelector('#homeKpis .kpi');
+  await small.waitForTimeout(600);
+  await shot(small, 'admin-phone-home', true);
+  await small.click('#menuBtn');
+  await small.waitForTimeout(400);
+  ok(await small.isVisible('#nav a[data-route=claude]'), 'phone: side menu opens');
+  await shot(small, 'admin-phone-menu');
 
   // ---------- forgot password page ----------
   const fp = watch(await desk.newPage(), 'forgot');

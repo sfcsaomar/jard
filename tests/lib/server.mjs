@@ -29,7 +29,9 @@ export async function startServer({ port, legacy = false } = {}) {
     SUPABASE_SERVICE_KEY: 'test-service-key-0123456789',
     RESEND_API_KEY: 're_test_key_123456',
     RESEND_URL: base + '/__resend',
-    APP_URL: base
+    APP_URL: base,
+    ANTHROPIC_ADMIN_URL: base + '/__anthropic',
+    ANTHROPIC_ADMIN_KEY: 'test-admin-key-not-real-0123456789'
   });
   const pg = await freshDb();
   const common = await import(ROOT + 'netlify/lib/common.mjs');
@@ -110,6 +112,17 @@ export async function startServer({ port, legacy = false } = {}) {
         res.writeHead(200, { 'content-type': 'application/json' }); return res.end('{"id":"m1"}');
       }
       if (url.pathname === '/__mail') return res.end(JSON.stringify(mails));
+      // Anthropic cost report: $1.50 a day for the last 5 days (amounts are cents as decimal strings).
+      if (url.pathname === '/__anthropic/v1/organizations/cost_report') {
+        if (req.headers['x-api-key'] !== 'test-admin-key-not-real-0123456789') { res.writeHead(401); return res.end('{}'); }
+        const from = Date.parse(url.searchParams.get('starting_at'));
+        const data = [];
+        for (let i = 4; i >= 0; i--) {
+          const day = new Date(Date.now() - i * 86400000).toISOString().slice(0, 10);
+          if (Date.parse(day) >= from) data.push({ starting_at: day + 'T00:00:00Z', ending_at: day + 'T23:59:59Z', results: [{ currency: 'USD', amount: '100.00' }, { currency: 'USD', amount: '50.00' }] });
+        }
+        res.writeHead(200, { 'content-type': 'application/json' }); return res.end(JSON.stringify({ data, has_more: false, next_page: null }));
+      }
       if (url.pathname === '/__maildown') { mailDown = url.searchParams.get('v') === '1'; return res.end('ok'); }
       if (url.pathname === '/__sql') { const r = await pg.query(buf.toString()); return res.end(JSON.stringify(r.rows)); }
       if (url.pathname.startsWith('/supa/')) return supa(req, res, url, req.method === 'PUT' ? buf : buf.toString());

@@ -2,6 +2,7 @@
 import crypto from 'node:crypto';
 import { syncEnabled } from './supa.mjs';
 import { db, ensureReady } from './db.mjs';
+import { toEnglish } from './messages-en.mjs';
 
 export { db };
 export const TOKEN_DAYS = Number(process.env.OFFLINE_GRACE_DAYS || 7);
@@ -15,7 +16,9 @@ export function json(status, body) {
     headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' }
   });
 }
-export const err = (status, code, message) => json(status, { ok: false, code, message });
+// Every error carries Arabic (message) and English (messageEn); pages show the chosen language.
+export const err = (status, code, message, messageEn) =>
+  json(status, { ok: false, code, message, messageEn: messageEn || toEnglish(message) || message });
 
 // Wraps a function handler: imports the old data on first run and turns database outages into a clear message.
 export function handler(fn) {

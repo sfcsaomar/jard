@@ -11,6 +11,7 @@ import {
   deleteProject, loadCompany, publicUser, applyCredentials, saveWithMail, sendInvite, cleanupPhotos
 } from '../lib/accounts.mjs';
 import { mailEnabled } from '../lib/mail.mjs';
+import { claudeSummary, setBalance, claudeConfigured } from '../lib/claude-usage.mjs';
 
 // Photo storage included in the current Supabase plan (GB); the panel warns from 80%.
 const STORAGE_LIMIT_GB = Number(process.env.STORAGE_LIMIT_GB || 1);
@@ -105,6 +106,28 @@ const actions = {
       storage = { ...u, limitBytes: limit, pct: Math.round((Number(u.bytes) / limit) * 1000) / 10 };
     } catch { /* storage stats are informational */ }
     return ok({ month: monthStr(), companies: list, me: meOf(ctx), superAdmins: supers, storage, mail: mailEnabled() });
+  },
+
+  // Numbers for the home page: activity per day and per company, AI requests per month, Claude spend.
+  async dashboard(ctx) {
+    let activity = null;
+    try { activity = await db.dashProvider(30); } catch { /* shown as unavailable until 0004 is applied */ }
+    let claude = { configured: claudeConfigured() };
+    try { claude = await claudeSummary(); } catch { /* informational */ }
+    return ok({ activity, claude });
+  },
+
+  // Claude spend page; fresh=true skips the 15-minute cache.
+  async claude(ctx, { fresh }) {
+    return ok({ claude: await claudeSummary({ fresh: !!fresh }) });
+  },
+
+  // Balance after a top-up: amount in USD, the date it was true, and the warning level.
+  async setClaudeBalance(ctx, { usd, date, warnUsd }) {
+    if (ctx.emergency) return err(400, 'emergency', 'أنت داخل بكلمة الطوارئ. أنشئ حسابًا لنفسك من قائمة حسابات المزوّد');
+    const v = await setBalance({ usd, date, warnUsd });
+    if (!v) return err(400, 'bad_amount', 'أدخل مبلغًا صحيحًا بالدولار');
+    return ok({ claude: await claudeSummary({ fresh: true }) });
   },
 
   // Create or edit a company and its license. The license runs for a number of months from its start date.
