@@ -46,7 +46,7 @@ export async function startServer({ port, legacy = false } = {}) {
     put('users/old.user', { username: 'old.user', licenseId: 'old1', projectId: 'pold', active: true, devices: ['devOld'], deviceInfo: { devOld: { addedAt: '2026-09-03T00:00:00Z' } }, ...common.hashPassword('oldpass123'), createdAt: '2026-09-02T11:00:00Z' });
     put('users/old.extra', { username: 'old.extra', licenseId: 'old1', projectId: 'pold', active: true, devices: [], ...common.hashPassword('oldpass123') }); // over the limit of 1: must still import
     put('users/old.admin', { username: 'old.admin', licenseId: 'old1', role: 'admin', active: true, devices: [], ...common.hashPassword('oldadmin123') });
-    put('usage/old1/2026-10', { count: 42, inputTokens: 1000, outputTokens: 50 });
+    put('usage/old1/' + new Date().toISOString().slice(0, 7), { count: 42, inputTokens: 1000, outputTokens: 50 });
   }
   dbm._setLegacyStoreForTests({
     async list({ prefix }) { return { blobs: [...store.keys()].filter((k) => k.startsWith(prefix)).map((key) => ({ key })) }; },
