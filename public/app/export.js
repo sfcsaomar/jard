@@ -15,26 +15,8 @@ $('exportBtn').addEventListener('click', async ()=>{
     // Build Excel sheet
     const active = all.filter(a=> !isFlagged(a));
     const flagged = all.filter(isFlagged);
-    const rows = active.map(a=>({
-      'Barcode': a.tag || '',
-      'Category Code': a.catCode || '',
-      'Category Name': a.category || '',
-      'Sub Category Code': a.subCategoryCode || '',
-      'Sub Category Name': a.subCategory || '',
-      'Description': a.name || '',
-      'Brand': a.brand || '',
-      'Condition': a.condition || '',
-      'Model': a.model || '',
-      'SN': a.sn || '',
-      'PlateNo': a.plateNo || '',
-      'Location': a.location || '',
-      'Building  Id': a.building || '',
-      'Remarks': a.notes || '',
-      'Value': a.value ? Number(a.value) || a.value : ''
-    }));
-    const HEADERS = ['Barcode','Category Code','Category Name','Sub Category Code','Sub Category Name','Description','Brand','Condition','Model','SN','PlateNo','Location','Building  Id','Remarks','Value'];
-    const ws = XLSX.utils.json_to_sheet(rows, {header: HEADERS});
-    ws['!cols'] = [{wch:14},{wch:12},{wch:16},{wch:14},{wch:16},{wch:30},{wch:12},{wch:10},{wch:12},{wch:14},{wch:10},{wch:12},{wch:10},{wch:22},{wch:10}];
+    // Columns follow the project's fields (fields.js); older projects keep the original client template.
+    const ws = excelSheet(userSettings(), active);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, t('co.xl.sheet'));
     if(flagged.length){

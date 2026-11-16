@@ -8,10 +8,20 @@ let data = null;
 let dash = null;         // home numbers (assets per day / project / user)
 try{ token = sessionStorage.getItem(TOKEN_KEY) || ''; }catch{}
 
-// Entry fields a project can make required (keys match the phone app).
-const FIELDS = ['category','subcat','name','condition','building','location','catcode','subcatcode','brand','model','sn','plateno','value','notes'];
+// Entry fields of a project (fields.js). Each one is hidden, optional or required.
 const fieldName = (k)=> t('co.f.' + k);
-$('p_required').innerHTML = FIELDS.map(k=>`<label><input type="checkbox" value="${k}">${esc(fieldName(k))}</label>`).join('');
+const FIELD_STATES = ['hidden', 'optional', 'required'];
+$('p_required').innerHTML = ASSET_FIELDS.map(f=> `<div class="fs-row" data-fk="${f.key}"><span class="fs-name">${esc(fieldName(f.key))}</span><span class="seg">${
+  FIELD_STATES.map(st=> `<label><input type="radio" name="fs_${f.key}" value="${st}"><span>${esc(t('co.fs.' + st))}</span></label>`).join('')}</span></div>`).join('');
+function setFieldStates(settings){
+  const hidden = settings ? settings.hidden || [] : ASSET_FIELDS.filter(f=> f.extra).map(f=> f.key);
+  const required = settings ? settings.required || [] : [];
+  ASSET_FIELDS.forEach(f=>{
+    const st = hidden.includes(f.key) ? 'hidden' : required.includes(f.key) ? 'required' : 'optional';
+    $('p_required').querySelector(`input[name="fs_${f.key}"][value="${st}"]`).checked = true;
+  });
+}
+const fieldsInState = (st)=> [...$('p_required').querySelectorAll(`input[value="${st}"]:checked`)].map(i=> i.closest('[data-fk]').dataset.fk);
 
 async function call(action, extra={}){
   let r, d = {};
@@ -225,7 +235,7 @@ function renderProjects(){
     <td><b>${esc(p.name)}</b>${p.notes ? `<div class="sub">${esc(p.notes)}</div>` : ''}</td>
     <td>${p.active ? `<span class="pill ok">${t('common.active')}</span>` : `<span class="pill bad">${t('common.suspended')}</span>`}</td>
     <td>${langName(p.settings.lang)}</td>
-    <td>${p.settings.required.length ? `<span class="pill" title="${esc(p.settings.required.map(fieldName).join(', '))}">${t('co.proj.fields', {n: p.settings.required.length})}</span>` : `<span class="sub">${t('co.proj.basicOnly')}</span>`}${p.settings.minPhotos > 1 ? ` <span class="pill">${t('co.proj.photos', {n: p.settings.minPhotos})}</span>` : ''}</td>
+    <td><span class="pill" title="${esc(p.settings.required.map(fieldName).join(', '))}">${t('co.fs.counts', {shown: ASSET_FIELDS.length + 1 - (p.settings.hidden || []).length, req: p.settings.required.length + 1})}</span>${p.settings.minPhotos > 1 ? ` <span class="pill">${t('co.proj.photos', {n: p.settings.minPhotos})}</span>` : ''}</td>
     <td>${p.categoryCount ? t('co.proj.catCount', {main: `<span class="stat">${num(p.categoryCount)}</span>`, sub: `<span class="stat">${num(p.subCategoryCount)}</span>`}) : `<span class="sub">${t('co.proj.noCats')}</span>`}</td>
     <td class="stat">${num(p.userCount)}</td>
     <td class="stat">${p.assetCount == null ? '—' : num(p.assetCount)}</td>
@@ -295,7 +305,7 @@ function openProject(p){
   $('p_minPhotos').value = p?.settings.minPhotos || 1;
   $('p_active').checked = p ? p.active : true;
   $('p_notes').value = p?.notes || '';
-  $('p_required').querySelectorAll('input').forEach(c=>{ c.checked = (p?.settings.required || []).includes(c.value); });
+  setFieldStates(p ? p.settings : null);
   $('projErr').textContent = '';
   openModal('projModal');
 }
@@ -307,7 +317,7 @@ $('projForm').addEventListener('submit', async (e)=>{
     id: $('p_id').value || undefined, name: $('p_name').value, active: $('p_active').checked, notes: $('p_notes').value,
     settings: {
       lang: $('p_lang').value, minPhotos: Number($('p_minPhotos').value || 1),
-      required: [...$('p_required').querySelectorAll('input:checked')].map(c=>c.value)
+      v: 2, required: fieldsInState('required'), hidden: fieldsInState('hidden')
     }
   }});
   if(!d.ok){ $('projErr').textContent = msgOf(d); return; }
@@ -607,12 +617,9 @@ async function openAsset(a){
   const x = a.data || {};
   $('am_tag').textContent = a.tag || '—';
   $('am_sub').textContent = t('co.inv.assetSub', {user: a.username, time: a.syncedAt ? isoTime(a.syncedAt) : '—'});
+  const choice = (f, v)=> f.key === 'condition' ? conditionName(v) : f.key === 'opstatus' && OPSTATUS_KEYS[v] ? t(OPSTATUS_KEYS[v]) : v;
   const rows = [
-    [fieldName('name'), x.name], [fieldName('category'), [x.catCode, x.category].filter(Boolean).join(' · ')],
-    [fieldName('subcat'), [x.subCategoryCode, x.subCategory].filter(Boolean).join(' · ')],
-    [fieldName('condition'), conditionName(x.condition)], [fieldName('building'), x.building], [fieldName('location'), x.location],
-    [fieldName('brand'), x.brand], [fieldName('model'), x.model], [fieldName('sn'), x.sn], [fieldName('plateno'), x.plateNo],
-    [fieldName('value'), x.value], [fieldName('notes'), x.notes],
+    ...ASSET_FIELDS.map(f=> [fieldName(f.key), choice(f, x[f.prop])]),
     ...(x.deleteFlag ? [[t('co.inv.flagReason'), x.deleteFlag.reason]] : [])
   ].filter(([,v])=> v != null && v !== '');
   $('am_fields').innerHTML = rows.map(([k,v])=>`<tr><th style="width:160px">${esc(k)}</th><td>${esc(v)}</td></tr>`).join('');
@@ -646,15 +653,9 @@ $('invExcel').addEventListener('click', async ()=>{
   try{
     const all = await fetchAllAssets((n, total)=> btn.textContent = t('co.inv.loadingN', {n: num(n), total: num(total)}));
     if(!all.length){ toast(t('co.inv.emptyProject')); return; }
-    const HEADERS = ['Barcode','Category Code','Category Name','Sub Category Code','Sub Category Name','Description','Brand','Condition','Model','SN','PlateNo','Location','Building  Id','Remarks','Value'];
-    const row = (a)=>{ const x = a.data || {}; return {
-      'Barcode': a.tag || '', 'Category Code': x.catCode || '', 'Category Name': x.category || '',
-      'Sub Category Code': x.subCategoryCode || '', 'Sub Category Name': x.subCategory || '', 'Description': x.name || '',
-      'Brand': x.brand || '', 'Condition': x.condition || '', 'Model': x.model || '', 'SN': x.sn || '', 'PlateNo': x.plateNo || '',
-      'Location': x.location || '', 'Building  Id': x.building || '', 'Remarks': x.notes || '',
-      'Value': x.value ? Number(x.value) || x.value : '' }; };
-    const ws = XLSX.utils.json_to_sheet(all.filter(a=> !a.flagged).map(row), {header: HEADERS});
-    ws['!cols'] = [{wch:14},{wch:12},{wch:16},{wch:14},{wch:16},{wch:30},{wch:12},{wch:10},{wch:12},{wch:14},{wch:10},{wch:12},{wch:10},{wch:22},{wch:10}];
+    // Same columns as the phone export: the project's fields (fields.js), or the original template for older projects.
+    const settings = data.projects.find(p=> p.id === inv.projectId)?.settings;
+    const ws = excelSheet(settings, all.filter(a=> !a.flagged).map(a=> ({...a.data, tag: a.tag, createdAt: a.createdAt})));
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, t('co.xl.sheet'));
     const flagged = all.filter(a=> a.flagged);

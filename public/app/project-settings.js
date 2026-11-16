@@ -29,8 +29,6 @@ function buildCategoryOptions(){
     $(id).readOnly = has;
     $(id).style.background = has ? 'var(--muted)' : '';
   });
-  // A required sub-category is checked on the visible picker when a list exists.
-  FIELD_DEFS.subcat = has ? ['f_subcatSel', t('co.f.subcat'), false] : ['f_subcat', t('co.f.subcat'), true];
 }
 // Keeps values that are not in the list (assets saved before the list was imported) selectable.
 function ensureOption(sel, value){
@@ -68,55 +66,54 @@ $('f_subcatSel').addEventListener('change', ()=>{
 });
 
 // ---------- Per-project entry settings (set by the company admin) ----------
+// Each field (fields.js) is hidden, optional or required for the project.
 const DESC_MAX = 265;
-// key -> [element id, label, inside "more details"?]
-const FIELD_DEFS = {
-  category:   ['f_category', t('co.f.category'), false],
-  name:       ['f_name', t('co.f.name'), false],
-  condition:  ['conditionChips', t('co.f.condition'), false],
-  building:   ['f_building', t('co.f.building'), false],
-  location:   ['f_location', t('co.f.location'), false],
-  catcode:    ['f_catcode', t('co.f.catcode'), true],
-  subcat:     ['f_subcat', t('co.f.subcat'), true],
-  subcatcode: ['f_subcatcode', t('co.f.subcatcode'), true],
-  brand:      ['f_brand', t('co.f.brand'), true],
-  model:      ['f_model', t('co.f.model'), true],
-  sn:         ['f_sn', t('co.f.sn'), true],
-  plateno:    ['f_plateno', t('co.f.plateno'), true],
-  value:      ['f_value', t('co.f.value'), true],
-  notes:      ['f_notes', t('co.f.notes'), false]
-};
+// The input that holds a field's value. A required sub-category is checked on the picker when a list exists.
+function fieldEl(key){
+  if(key === 'condition') return $('conditionChips');
+  if(key === 'opstatus') return $('opStatusChips');
+  if(key === 'subcat' && projectCats().length) return $('f_subcatSel');
+  return $('f_' + key);
+}
 function userSettings(){
   const st = (session && session.license && session.license.settings) || {};
+  // Settings from a server older than v2.6 have no hidden list: hide the fields added in v2.6.
+  const hidden = Array.isArray(st.hidden) ? st.hidden.filter(k=> FIELD_BY_KEY[k]) : ASSET_FIELDS.filter(f=> f.added).map(f=> f.key);
   return {
+    v: st.v === 2 ? 2 : 1,
     lang: st.lang === 'en' ? 'en' : 'ar',
-    required: Array.isArray(st.required) ? st.required.filter(k=> FIELD_DEFS[k]) : [],
+    hidden,
+    required: Array.isArray(st.required) ? st.required.filter(k=> FIELD_BY_KEY[k] && !hidden.includes(k)) : [],
     minPhotos: Math.min(4, Math.max(1, Number(st.minPhotos) || 1))
   };
 }
-// The label of a field: the <label> right before the input, or the field's first label.
-function fieldWrap(key){
-  const el = $(FIELD_DEFS[key][0]);
-  return el.closest('.two-col > div') || el.closest('.field');
-}
+function fieldShown(key){ return !userSettings().hidden.includes(key); }
+function fieldWrap(key){ return fieldEl(key).closest('.field'); }
 function applyFieldSettings(){
   buildCategoryOptions();
   const st = userSettings();
+  const hidden = new Set(st.hidden);
+  document.querySelectorAll('#formSheet [data-fkey]').forEach(w=>{ w.hidden = hidden.has(w.dataset.fkey); });
+  $('subcatPick').hidden = !projectCats().length || hidden.has('subcat');
+  $('labelRow').hidden = ['brand', 'model', 'sn'].every(k=> hidden.has(k));
+  const moreShown = !$('labelRow').hidden || [...$('moreFields').querySelectorAll('[data-fkey]')].some(w=> !w.hidden);
+  $('moreToggle').hidden = !moreShown;
+  if(!moreShown){ $('moreToggle').classList.remove('open'); $('moreFields').classList.remove('open'); }
+
   document.querySelectorAll('#formSheet .req-star').forEach(x=> x.remove());
   $('photoLabel').textContent = st.minPhotos > 1
     ? t('app.photos.min', {n: st.minPhotos})
     : t('app.photos.label');
-
   const star = ()=>{ const s = document.createElement('span'); s.className = 'req-star'; s.textContent = '*'; return s; };
-  ['f_tag', 'photoGrid'].concat(st.required.map(k=> FIELD_DEFS[k][0])).forEach(id=>{
-    const lbl = ($(id).closest('.two-col > div') || $(id).closest('.field')).querySelector('label');
+  [$('f_tag'), $('photoGrid')].concat(st.required.map(fieldEl)).forEach(el=>{
+    const lbl = el.closest('.field').querySelector('label');
     if(lbl) lbl.appendChild(star());
   });
   const en = st.lang === 'en';
   $('f_name').dir = en ? 'ltr' : 'rtl';
   // The example follows the project's entry language, not the interface language.
   $('f_name').placeholder = (en ? I18N.en : I18N.ar)['app.form.namePh'];
-  if(st.required.some(k=> FIELD_DEFS[k][2])){
+  if(st.required.some(k=> $('moreFields').contains(fieldEl(k)))){
     $('moreToggle').classList.add('open'); $('moreFields').classList.add('open');
   }
 }
@@ -125,7 +122,8 @@ function clearInvalid(){
 }
 function fieldIsEmpty(key){
   if(key === 'condition') return !currentCondition;
-  return !String($(FIELD_DEFS[key][0]).value || '').trim();
+  if(key === 'opstatus') return !currentOpStatus;
+  return !String(fieldEl(key).value || '').trim();
 }
 function validateRequired(){
   clearInvalid();
@@ -135,7 +133,7 @@ function validateRequired(){
   if(!$('f_tag').value.trim()) mark($('f_tag').closest('.field'), t('co.f.tag'));
   const photoCount = currentPhotos.filter(p=>p).length;
   if(photoCount < st.minPhotos) mark($('photoGrid').closest('.field'), st.minPhotos > 1 ? t('co.proj.photos', {n: st.minPhotos}) : t('app.photos.one'));
-  st.required.forEach(k=>{ if(fieldIsEmpty(k)) mark(fieldWrap(k), FIELD_DEFS[k][1]); });
+  st.required.forEach(k=>{ if(fieldIsEmpty(k)) mark(fieldWrap(k), t('co.f.' + k)); });
   if(!missing.length) return true;
   if(missing.some(m=> $('moreFields').contains(m.wrap))){
     $('moreToggle').classList.add('open'); $('moreFields').classList.add('open');
@@ -151,9 +149,9 @@ $('formSheet').addEventListener('input', (e)=>{
 $('formSheet').addEventListener('change', (e)=>{
   const w = e.target.closest('.invalid'); if(w) w.classList.remove('invalid');
 });
-$('conditionChips').addEventListener('click', ()=>{
-  const w = $('conditionChips').closest('.invalid'); if(w) w.classList.remove('invalid');
-});
+['conditionChips', 'opStatusChips'].forEach(id=> $(id).addEventListener('click', ()=>{
+  const w = $(id).closest('.invalid'); if(w) w.classList.remove('invalid');
+}));
 
 // Description box: grows with the text, 265-character cap, language check.
 const AR_RE = /[\u0600-\u06FF]/;

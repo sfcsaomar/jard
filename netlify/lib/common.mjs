@@ -159,20 +159,29 @@ export function normCategories(list) {
   return out;
 }
 
-// ---------- per-user field settings ----------
-// Fields the admin can make mandatory for a user. The asset number and at least
-// one photo are always mandatory; minPhotos (1-4) raises the photo minimum.
-export const REQUIRABLE_FIELDS = [
-  'category', 'name', 'condition', 'building', 'location',
-  'catcode', 'subcat', 'subcatcode', 'brand', 'model', 'sn', 'plateno', 'value', 'notes'
+// ---------- per-project field settings ----------
+// Entry fields, same keys and order as public/fields.js (ASSET_FIELDS). The asset number and at
+// least one photo are always mandatory; minPhotos (1-4) raises the photo minimum.
+// Each field is hidden, optional or required. Settings saved before v2.6 have no v:2; their
+// projects keep the original fields (the v2.6 additions hidden) and the original Excel layout.
+export const FIELD_KEYS = [
+  'oldtag', 'category', 'catcode', 'subcat', 'subcatcode', 'name', 'brand', 'model', 'sn', 'year', 'qty',
+  'condition', 'opstatus', 'region', 'city', 'bname', 'building', 'floor', 'location', 'roomnotes',
+  'dept', 'employee', 'plateno', 'value', 'notes'
 ];
+export const ADDED_FIELDS = ['oldtag', 'year', 'qty', 'opstatus', 'region', 'city', 'bname', 'floor', 'roomnotes', 'dept', 'employee'];
+export const REQUIRABLE_FIELDS = FIELD_KEYS;
 export function normSettings(s) {
   const lang = s?.lang === 'en' ? 'en' : 'ar';
+  const v2 = s?.v === 2;
+  const hidden = v2 && Array.isArray(s.hidden)
+    ? [...new Set(s.hidden.filter((f) => FIELD_KEYS.includes(f)))]
+    : [...ADDED_FIELDS];
   const required = Array.isArray(s?.required)
-    ? [...new Set(s.required.filter((f) => REQUIRABLE_FIELDS.includes(f)))]
+    ? [...new Set(s.required.filter((f) => FIELD_KEYS.includes(f) && !hidden.includes(f)))]
     : [];
   const minPhotos = Math.min(4, Math.max(1, Math.floor(Number(s?.minPhotos) || 1)));
-  return { lang, required, minPhotos };
+  return v2 ? { v: 2, lang, required, hidden, minPhotos } : { lang, required, hidden, minPhotos };
 }
 
 export function publicLicense(license, user, project) {

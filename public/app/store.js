@@ -92,6 +92,7 @@ let assets = [];
 let currentEditId = null;
 let currentPhotos = [null, null, null, null]; // Blobs
 let currentCondition = '';
+let currentOpStatus = '';
 let currentLabel = null; // nameplate photo (Blob)
 
 const $ = (id)=> document.getElementById(id);
