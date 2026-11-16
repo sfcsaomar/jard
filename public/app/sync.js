@@ -31,7 +31,7 @@ function makeThumb(blob, maxSide = 320){
     img.src = url;
   });
 }
-const SYNC_FIELDS = ['category','catCode','subCategory','subCategoryCode','name','brand','condition','model','sn','plateNo','location','building','notes','value'];
+const SYNC_FIELDS = ASSET_FIELDS.map(f=> f.prop);
 function assetData(a){
   const d = {};
   for(const f of SYNC_FIELDS) if(a[f] != null && a[f] !== '') d[f] = a[f];

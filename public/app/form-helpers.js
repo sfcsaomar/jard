@@ -4,7 +4,7 @@
 // ---------- More details helper ----------
 function a_hasMore(id){
   const a = assets.find(x=>x.id===id);
-  return !!(a && (a.brand || a.model || a.sn || a.labelPhoto || a.plateNo || a.catCode));
+  return !!(a && (a.labelPhoto || [...$('moreFields').querySelectorAll('[data-fkey]')].some(w=> a[FIELD_BY_KEY[w.dataset.fkey].prop])));
 }
 
 // ---------- Duplicate barcode ----------
@@ -33,15 +33,13 @@ $('nextTagBtn').addEventListener('click', ()=> setTimeout(checkDuplicate, 50));
 $('copyPrevBtn').addEventListener('click', ()=>{
   const prev = assets.find(a=> !isFlagged(a));
   if(!prev){ toast(t('app.copy.none')); return; }
-  $('f_catcode').value = prev.catCode || '';
-  $('f_subcat').value = prev.subCategory || '';
-  $('f_subcatcode').value = prev.subCategoryCode || '';
+  // The descriptive fields; not the numbers that identify this one asset (tag, old code, serial, plate), not the location.
+  ['catcode', 'subcat', 'subcatcode', 'name', 'brand', 'model', 'year', 'qty', 'value'].forEach(k=>{
+    $('f_' + k).value = prev[FIELD_BY_KEY[k].prop] ?? '';
+  });
   setCategoryValue(prev.category, prev.subCategory);
-  $('f_name').value = prev.name || '';
-  $('f_brand').value = prev.brand || '';
-  $('f_model').value = prev.model || '';
-  $('f_value').value = prev.value || '';
   setCondition(prev.condition || '');
+  setOpStatus(prev.opStatus || '');
   updateDescMeta();
   toast(t('app.copy.done', {tag: prev.tag}));
 });

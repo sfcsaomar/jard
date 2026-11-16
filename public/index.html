@@ -108,50 +108,79 @@
       <div class="photo-hint" data-i18n="app.form.photoHint"></div>
     </div>
 
-    <div class="field">
-      <label><span data-i18n="co.f.category"></span></label>
-      <select id="f_category">
-        <option value=""></option>
-        <option>Furniture</option>
-        <option>COMPUTER &amp; NET WORK</option>
-        <option>Electrical Appliances</option>
-        <option>Lighting</option>
-        <option>Fixtures &amp; Fittings</option>
-        <option>Other</option>
-      </select>
-    </div>
-
-    <div class="field" id="subcatPick" hidden>
-      <label><span data-i18n="co.f.subcat"></span></label>
-      <select id="f_subcatSel"><option value=""></option></select>
-    </div>
-
-    <div class="field">
-      <label><span data-i18n="app.form.name"></span></label>
-      <textarea id="f_name" class="desc-box" rows="2" maxlength="265" ></textarea>
-      <div class="field-meta"><span class="lang-warn" id="langWarn"></span><span class="mono" id="descCount">0/265</span></div>
-      <button type="button" class="btn-ai" id="aiSuggestBtn"><span aria-hidden="true">✨</span> <span data-i18n="app.ai.suggest"></span></button>
-      <div class="ai-hint" id="aiHint"></div>
-    </div>
-
-    <div class="field">
-      <label><span data-i18n="co.f.condition"></span></label>
-      <div class="condition-chips" id="conditionChips">
-        <button type="button" class="chip" data-v="Good" data-i18n="co.cond.good"></button>
-        <button type="button" class="chip" data-v="New" data-i18n="co.cond.new"></button>
-        <button type="button" class="chip" data-v="Fair" data-i18n="co.cond.fair"></button>
-        <button type="button" class="chip" data-v="Needs Maintenance" data-i18n="co.cond.maint"></button>
+    <!-- Every entry field carries data-fkey (its key in fields.js). A project can hide any of them. -->
+    <div class="fgrid">
+      <div class="field full" data-fkey="category">
+        <label><span data-i18n="co.f.category"></span></label>
+        <select id="f_category"><option value=""></option></select>
       </div>
-    </div>
+      <div class="field full" id="subcatPick" data-fkey="subcat" hidden>
+        <label><span data-i18n="co.f.subcat"></span></label>
+        <select id="f_subcatSel"><option value=""></option></select>
+      </div>
 
-    <div class="field two-col">
-      <div>
+      <div class="field full" data-fkey="name">
+        <label><span data-i18n="app.form.name"></span></label>
+        <textarea id="f_name" class="desc-box" rows="2" maxlength="265" ></textarea>
+        <div class="field-meta"><span class="lang-warn" id="langWarn"></span><span class="mono" id="descCount">0/265</span></div>
+        <button type="button" class="btn-ai" id="aiSuggestBtn"><span aria-hidden="true">✨</span> <span data-i18n="app.ai.suggest"></span></button>
+        <div class="ai-hint" id="aiHint"></div>
+      </div>
+
+      <div class="field full" data-fkey="condition">
+        <label><span data-i18n="co.f.condition"></span></label>
+        <div class="condition-chips" id="conditionChips">
+          <button type="button" class="chip" data-v="Good" data-i18n="co.cond.good"></button>
+          <button type="button" class="chip" data-v="New" data-i18n="co.cond.new"></button>
+          <button type="button" class="chip" data-v="Fair" data-i18n="co.cond.fair"></button>
+          <button type="button" class="chip" data-v="Needs Maintenance" data-i18n="co.cond.maint"></button>
+        </div>
+      </div>
+
+      <div class="field full" data-fkey="opstatus">
+        <label><span data-i18n="co.f.opstatus"></span></label>
+        <div class="condition-chips" id="opStatusChips">
+          <button type="button" class="chip" data-v="Working" data-i18n="co.op.working"></button>
+          <button type="button" class="chip" data-v="Not Working" data-i18n="co.op.notWorking"></button>
+          <button type="button" class="chip" data-v="Not Tested" data-i18n="co.op.untested"></button>
+        </div>
+      </div>
+
+      <div class="field" data-fkey="region">
+        <label><span data-i18n="co.f.region"></span></label>
+        <input type="text" id="f_region">
+      </div>
+      <div class="field" data-fkey="city">
+        <label><span data-i18n="co.f.city"></span></label>
+        <input type="text" id="f_city">
+      </div>
+      <div class="field" data-fkey="bname">
+        <label><span data-i18n="co.f.bname"></span></label>
+        <input type="text" id="f_bname">
+      </div>
+      <div class="field" data-fkey="building">
         <label><span data-i18n="co.f.building"></span></label>
         <input type="text" id="f_building" class="mono" placeholder="B01">
       </div>
-      <div>
+      <div class="field" data-fkey="floor">
+        <label><span data-i18n="co.f.floor"></span></label>
+        <input type="text" id="f_floor" class="mono" placeholder="2">
+      </div>
+      <div class="field" data-fkey="location">
         <label><span data-i18n="co.f.location"></span></label>
-        <input type="text" id="f_location" placeholder="Room 3">
+        <input type="text" id="f_location" placeholder="203">
+      </div>
+      <div class="field full" data-fkey="roomnotes">
+        <label><span data-i18n="co.f.roomnotes"></span></label>
+        <input type="text" id="f_roomnotes">
+      </div>
+      <div class="field" data-fkey="dept">
+        <label><span data-i18n="co.f.dept"></span></label>
+        <input type="text" id="f_dept">
+      </div>
+      <div class="field" data-fkey="employee">
+        <label><span data-i18n="co.f.employee"></span></label>
+        <input type="text" id="f_employee">
       </div>
     </div>
 
@@ -160,53 +189,59 @@
       <span class="arrow">⌄</span>
     </div>
     <div class="more-fields" id="moreFields">
-      <div class="label-row">
+      <div class="label-row" id="labelRow">
         <img class="label-thumb" id="labelThumb" alt="">
         <button type="button" class="btn-ai" id="labelReadBtn"><span aria-hidden="true">📷</span> <span data-i18n="app.plate.read"></span></button>
       </div>
-      <div class="field two-col">
-        <div>
+      <div class="fgrid">
+        <div class="field" data-fkey="oldtag">
+          <label><span data-i18n="co.f.oldtag"></span></label>
+          <input type="text" id="f_oldtag" class="mono">
+        </div>
+        <div class="field" data-fkey="catcode">
           <label><span data-i18n="co.f.catcode"></span></label>
           <input type="text" id="f_catcode" class="mono" placeholder="10000">
         </div>
-        <div>
+        <div class="field" data-fkey="subcat">
           <label><span data-i18n="co.f.subcat"></span></label>
           <input type="text" id="f_subcat" placeholder="Chairs, stools">
         </div>
-      </div>
-      <div class="field two-col">
-        <div>
+        <div class="field" data-fkey="subcatcode">
           <label><span data-i18n="co.f.subcatcode"></span></label>
           <input type="text" id="f_subcatcode" class="mono" placeholder="10054">
         </div>
-        <div>
+        <div class="field" data-fkey="brand">
           <label><span data-i18n="co.f.brand"></span></label>
           <input type="text" id="f_brand" placeholder="DELL">
         </div>
-      </div>
-      <div class="field two-col">
-        <div>
+        <div class="field" data-fkey="model">
           <label><span data-i18n="co.f.model"></span></label>
           <input type="text" id="f_model" placeholder="">
         </div>
-        <div>
+        <div class="field" data-fkey="sn">
           <label><span data-i18n="app.form.sn"></span></label>
           <input type="text" id="f_sn" class="mono" placeholder="">
         </div>
-      </div>
-      <div class="field two-col">
-        <div>
+        <div class="field" data-fkey="year">
+          <label><span data-i18n="co.f.year"></span></label>
+          <input type="text" id="f_year" class="mono" inputmode="numeric" maxlength="4" placeholder="2020">
+        </div>
+        <div class="field" data-fkey="qty">
+          <label><span data-i18n="co.f.qty"></span></label>
+          <input type="text" id="f_qty" class="mono" inputmode="numeric" maxlength="6" placeholder="1">
+        </div>
+        <div class="field" data-fkey="plateno">
           <label><span data-i18n="co.f.plateno"></span></label>
           <input type="text" id="f_plateno" class="mono" placeholder="">
         </div>
-        <div>
+        <div class="field" data-fkey="value">
           <label><span data-i18n="co.f.value"></span></label>
           <input type="text" id="f_value" inputmode="decimal" placeholder="900">
         </div>
       </div>
     </div>
 
-    <div class="field">
+    <div class="field" data-fkey="notes">
       <label><span data-i18n="app.form.notes"></span></label>
       <textarea id="f_notes" data-i18n-ph="app.form.notesPh"></textarea>
     </div>
@@ -227,13 +262,13 @@
     <span style="width:30px;"></span>
   </div>
   <div class="sheet-body">
-    <div class="field">
-      <label><span data-i18n="co.f.building"></span></label>
-      <input type="text" id="loc_building" class="mono" data-i18n-ph="app.loc.buildingPh">
-    </div>
-    <div class="field">
-      <label><span data-i18n="app.loc.room"></span></label>
-      <input type="text" id="loc_room" data-i18n-ph="app.loc.roomPh">
+    <div class="fgrid">
+      <div class="field" data-lkey="region"><label><span data-i18n="co.f.region"></span></label><input type="text" id="loc_region"></div>
+      <div class="field" data-lkey="city"><label><span data-i18n="co.f.city"></span></label><input type="text" id="loc_city"></div>
+      <div class="field" data-lkey="bname"><label><span data-i18n="co.f.bname"></span></label><input type="text" id="loc_bname"></div>
+      <div class="field" data-lkey="building"><label><span data-i18n="co.f.building"></span></label><input type="text" id="loc_building" class="mono" data-i18n-ph="app.loc.buildingPh"></div>
+      <div class="field" data-lkey="floor"><label><span data-i18n="co.f.floor"></span></label><input type="text" id="loc_floor" class="mono"></div>
+      <div class="field" data-lkey="location"><label><span data-i18n="app.loc.room"></span></label><input type="text" id="loc_room" data-i18n-ph="app.loc.roomPh"></div>
     </div>
     <div class="photo-hint">
       <span data-i18n="app.loc.hint"></span>
@@ -309,6 +344,7 @@
   <img id="lightboxImg" src="">
 </div>
 
+<script src="/fields.js"></script>
 <script src="/app/store.js"></script>
 <script src="/app/list.js"></script>
 <script src="/app/form.js"></script>

@@ -69,13 +69,28 @@ $('closeLightbox').addEventListener('click', ()=> $('lightbox').classList.remove
 
 function setCondition(v){
   currentCondition = v;
-  document.querySelectorAll('.chip').forEach(c=>{
+  $('conditionChips').querySelectorAll('.chip').forEach(c=>{
     c.classList.toggle('active', c.dataset.v === v);
   });
 }
-document.querySelectorAll('.chip').forEach(c=>{
+$('conditionChips').querySelectorAll('.chip').forEach(c=>{
   c.addEventListener('click', ()=> setCondition(c.dataset.v));
 });
+function setOpStatus(v){
+  currentOpStatus = v;
+  $('opStatusChips').querySelectorAll('.chip').forEach(c=>{
+    c.classList.toggle('active', c.dataset.v === v);
+  });
+}
+$('opStatusChips').querySelectorAll('.chip').forEach(c=>{
+  c.addEventListener('click', ()=> setOpStatus(c.dataset.v === currentOpStatus ? '' : c.dataset.v));
+});
+
+// Text fields of the form: every field in fields.js except the category picker and the two chip groups.
+const TEXT_FIELDS = ASSET_FIELDS.filter(f=> !['category', 'condition', 'opstatus'].includes(f.key));
+// Where the current-location value of a location field is kept on the device.
+const LOC_SETTING = {building: 'currentBuilding', location: 'currentLocation'};
+const locSetting = (key)=> LOC_SETTING[key] || ('currentLoc_' + key);
 
 async function nextTagNumber(){
   const all = await dbAll();
@@ -105,22 +120,12 @@ async function openForm(id=null){
     const a = assets.find(x=>x.id===id);
     $('formTitle').textContent = t('app.form.editTitle');
     $('f_tag').value = a.tag || '';
-    $('f_name').value = a.name || '';
-    $('f_building').value = a.building || '';
-    $('f_location').value = a.location || '';
-    $('f_catcode').value = a.catCode || '';
-    $('f_subcat').value = a.subCategory || '';
-    $('f_subcatcode').value = a.subCategoryCode || '';
+    TEXT_FIELDS.forEach(f=>{ $('f_' + f.key).value = a[f.prop] ?? ''; });
     setCategoryValue(a.category, a.subCategory);
-    $('f_brand').value = a.brand || '';
-    $('f_model').value = a.model || '';
-    $('f_sn').value = a.sn || '';
-    $('f_plateno').value = a.plateNo || '';
-    $('f_value').value = a.value || '';
-    $('f_notes').value = a.notes || '';
     a.photos.forEach((p,i)=>{ if(i<4) currentPhotos[i] = p; });
     currentLabel = a.labelPhoto || null;
     setCondition(a.condition || '');
+    setOpStatus(a.opStatus || '');
     $('deleteLink').style.display = 'block';
     $('deleteLink').textContent = isFlagged(a) ? t('app.flag.unmark') : t('app.flag.mark');
     $('flagNote').innerHTML = isFlagged(a)
@@ -131,21 +136,14 @@ async function openForm(id=null){
   } else {
     $('formTitle').textContent = t('app.form.newTitle');
     $('f_tag').value = '';
-    $('f_name').value = '';
-    $('f_building').value = await getSetting('currentBuilding');
-    $('f_location').value = await getSetting('currentLocation');
-    $('f_catcode').value = '';
-    $('f_subcat').value = '';
-    $('f_subcatcode').value = '';
+    for(const f of TEXT_FIELDS){
+      $('f_' + f.key).value = f.loc ? await getSetting(locSetting(f.key)) : '';
+    }
+    if(fieldShown('qty')) $('f_qty').value = '1';
     setCategoryValue('', '');
-    $('f_brand').value = '';
-    $('f_model').value = '';
-    $('f_sn').value = '';
-    $('f_plateno').value = '';
-    $('f_value').value = '';
-    $('f_notes').value = '';
     currentLabel = null;
     setCondition('');
+    setOpStatus('');
     $('deleteLink').style.display = 'none';
     $('flagNote').classList.remove('show');
     $('copyPrevBtn').style.visibility = assets.length ? 'visible' : 'hidden';
@@ -182,24 +180,15 @@ $('saveBtn').addEventListener('click', async ()=>{
   const asset = {
     tag,
     category: $('f_category').value,
-    catCode: $('f_catcode').value.trim(),
-    subCategory: $('f_subcat').value.trim(),
-    subCategoryCode: $('f_subcatcode').value.trim(),
-    name: $('f_name').value.trim().slice(0, DESC_MAX),
-    brand: $('f_brand').value.trim(),
     condition: currentCondition,
-    model: $('f_model').value.trim(),
-    sn: $('f_sn').value.trim(),
-    plateNo: $('f_plateno').value.trim(),
-    location: $('f_location').value.trim(),
-    building: $('f_building').value.trim(),
-    notes: $('f_notes').value.trim(),
-    value: $('f_value').value.trim(),
+    opStatus: currentOpStatus,
     photos: currentPhotos,
     labelPhoto: currentLabel,
     deleteFlag: currentEditId ? (assets.find(a=>a.id===currentEditId)?.deleteFlag || null) : null,
     createdAt: currentEditId ? (assets.find(a=>a.id===currentEditId)?.createdAt || Date.now()) : Date.now()
   };
+  TEXT_FIELDS.forEach(f=>{ asset[f.prop] = $('f_' + f.key).value.trim(); });
+  asset.name = asset.name.slice(0, DESC_MAX);
   if(currentEditId){
     asset.id = currentEditId;
     const prev = assets.find(a=> a.id === currentEditId);

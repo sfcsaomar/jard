@@ -85,7 +85,12 @@ try {
   await shot(co, 'company-login');
   await co.fill('#lg_user', 'co.admin'); await co.fill('#lg_pass', 'copass123'); await co.click('#loginBtn');
   await co.waitForSelector('#appView', { state: 'visible' });
-  await co.click('#nav a[data-route=projects]'); await co.click('#newProjBtn'); await co.fill('#p_name', 'HQ'); await co.click('#projForm button[type=submit]');
+  await co.click('#nav a[data-route=projects]'); await co.click('#newProjBtn'); await co.fill('#p_name', 'HQ');
+  // New project: fields outside the v2.6 list start hidden; make the employee name required.
+  ok(await co.isChecked('input[name=fs_plateno][value=hidden]') && await co.isChecked('input[name=fs_employee][value=optional]'), 'new project: field states default (plate hidden, employee optional)');
+  await co.click('input[name=fs_employee][value=required] + span');
+  await shot(co, 'company-project-fields');
+  await co.click('#projForm button[type=submit]');
   await co.waitForSelector('#catModal.open'); await co.click('#catModal [data-close]');
   await co.click('#nav a[data-route=users]'); await co.click('#newUserBtn');
   await co.fill('#u_username', 'walker'); await co.fill('#u_email', 'walker@acme.com');
@@ -118,9 +123,21 @@ try {
   await chooser.setFiles(PHOTO);
   await app.waitForSelector('#photoGrid img');
   await app.fill('#f_name', 'طاولة اجتماعات');
+  ok(await app.isHidden('#f_plateno') && await app.isVisible('#f_employee') && await app.isVisible('#opStatusChips'), 'phone form follows the project fields (plate hidden, employee and operational status shown)');
+  ok((await app.inputValue('#f_qty')) === '1', 'quantity starts at 1');
   await shot(app, 'app-form');
   await app.click('#saveBtn');
+  await app.waitForTimeout(500);
+  ok((await app.innerText('#toast')).includes('اسم الموظف'), 'required employee name blocks saving: ' + (await app.innerText('#toast')));
+  await app.fill('#f_employee', 'سالم');
+  await app.evaluate(() => document.querySelector('#f_floor').scrollIntoView({ block: 'center' }));
+  await app.waitForTimeout(300);
+  await shot(app, 'app-form-fields');
+  await app.click('#opStatusChips .chip[data-v=Working]');
+  await app.click('#saveBtn');
   await app.waitForTimeout(800);
+  const head = await app.evaluate(() => excelLayout(userSettings()).headers);
+  ok(head[0] === 'رقم' && head.includes('اسم الموظف') && head.includes('تاريخ الجرد') && !head.includes('PlateNo'), 'phone Excel columns follow the project fields: ' + head.join(' | '));
   ok((await app.innerText('#assetCount')) === '1', 'asset saved on the phone');
 
   // sync reaches the server (assets and the photo)
@@ -130,6 +147,8 @@ try {
     synced = Number((await sql("select count(*) n from assets where tag = 'A-0001'"))[0].n);
   }
   ok(synced === 1, 'asset synced to the server');
+  const sd = (await sql("select data->>'employee' e, data->>'opStatus' o, data->>'qty' q from assets where tag = 'A-0001'"))[0];
+  ok(sd.e === 'سالم' && sd.o === 'Working' && sd.q === '1', 'new fields synced: ' + JSON.stringify(sd));
 
   const [download] = await Promise.all([app.waitForEvent('download', { timeout: 20000 }), app.click('#exportBtn')]);
   const zipBytes = fs.readFileSync(await download.path());
@@ -164,7 +183,7 @@ try {
   await app.click('#moreToggle');
   await app.waitForTimeout(300);
   appText = await app.innerText('#formSheet');
-  ok(!appRawKey.test(appText) && !arabicIn(appText) && appText.includes('Asset number'), 'app form (en): English labels' + (arabicIn(appText) ? ' — "' + arabicIn(appText)[0] + '"' : ''));
+  ok(!appRawKey.test(appText) && !arabicIn(appText) && appText.includes('Asset & barcode number'), 'app form (en): English labels' + (arabicIn(appText) ? ' — "' + arabicIn(appText)[0] + '"' : ''));
   await shot(app, 'app-en-form', true);
   await app.click('#saveBtn');
   await app.waitForTimeout(300);

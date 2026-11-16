@@ -1,6 +1,6 @@
 // Offline support: the app shell and libraries are cached so the app opens without internet.
 // Every file index.html loads must be listed in SHELL (tests/static.test.mjs checks this).
-const CACHE = 'asset-inv-v10';
+const CACHE = 'asset-inv-v11';
 const SHELL = [
   '/',
   '/index.html',
@@ -10,6 +10,7 @@ const SHELL = [
   '/i18n/en.js',
   '/i18n/i18n.js',
   '/app/app.css',
+  '/fields.js',
   '/app/store.js',
   '/app/list.js',
   '/app/form.js',

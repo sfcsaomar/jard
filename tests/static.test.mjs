@@ -121,6 +121,27 @@ for (const dir of SERVER_DIRS) {
 const untranslated = [...serverMsgs].filter((m) => !toEnglish(m));
 ok(untranslated.length === 0, `all ${serverMsgs.size} server messages have English` + (untranslated.length ? ' — ' + untranslated.join(' | ') : ''));
 
+// ---------- entry fields: the browser list (fields.js) and the two server lists agree ----------
+{
+  const fieldsSrc = read('fields.js');
+  const reg = [...fieldsSrc.matchAll(/\{key: '(\w+)',\s*prop: '(\w+)'/g)].map((m) => ({ key: m[1], prop: m[2] }));
+  const common = fs.readFileSync(path.join(ROOT, 'netlify/lib/common.mjs'), 'utf8');
+  const listOf = (src, name) => [...src.slice(src.indexOf(name)).split(']')[0].matchAll(/'(\w+)'/g)].map((m) => m[1]);
+  const serverKeys = listOf(common, 'export const FIELD_KEYS');
+  const serverProps = listOf(fs.readFileSync(path.join(ROOT, 'netlify/functions/sync.mjs'), 'utf8'), 'const FIELDS');
+  const added = listOf(common, 'export const ADDED_FIELDS');
+  ok(reg.length > 20, `fields.js lists ${reg.length} fields`);
+  ok(JSON.stringify(reg.map((f) => f.key)) === JSON.stringify(serverKeys), 'common.mjs FIELD_KEYS matches fields.js');
+  ok(JSON.stringify(reg.map((f) => f.prop)) === JSON.stringify(serverProps), 'sync.mjs FIELDS matches fields.js');
+  const regAdded = [...fieldsSrc.matchAll(/\{key: '(\w+)'[^}]*added: true/g)].map((m) => m[1]);
+  ok(JSON.stringify(regAdded) === JSON.stringify(added), 'common.mjs ADDED_FIELDS matches fields.js');
+  const noLabel = reg.filter((f) => !AR['co.f.' + f.key] || !EN['co.f.' + f.key]).map((f) => f.key);
+  ok(noLabel.length === 0, 'every field has a label in both languages' + (noLabel.length ? ' — ' + noLabel.join(', ') : ''));
+  const html = read('index.html');
+  const noInput = reg.filter((f) => !['category', 'condition', 'opstatus'].includes(f.key) && !html.includes(`id="f_${f.key}"`)).map((f) => f.key);
+  ok(noInput.length === 0, 'every text field has its input in the form' + (noInput.length ? ' — ' + noInput.join(', ') : ''));
+}
+
 // ---------- server functions ----------
 for (const f of fs.readdirSync(path.join(ROOT, 'netlify/functions'))) {
   const src = fs.readFileSync(path.join(ROOT, 'netlify/functions', f), 'utf8');

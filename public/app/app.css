@@ -250,6 +250,11 @@ main{padding:14px 16px 0;}
 .more-fields{display:none;}
 .more-fields.open{display:block;}
 .two-col{display:grid; grid-template-columns:1fr 1fr; gap:10px;}
+/* Entry fields: two per row; .full takes the whole row. A field a project hides gets [hidden]. */
+.fgrid{display:grid; grid-template-columns:1fr 1fr; column-gap:10px;}
+.fgrid > .field{min-width:0;}
+.fgrid > .field.full{grid-column:1/-1;}
+.fgrid > .field[hidden], .field[hidden]{display:none;}
 
 /* Toast */
 .toast{

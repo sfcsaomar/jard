@@ -5,15 +5,17 @@ import { syncEnabled, rpc, signUpload, photoPath, thumbPath, HASH_RE } from '../
 
 const MAX_SIGN = 40;
 const MAX_PUSH = 25;
-const FIELDS = ['category', 'catCode', 'subCategory', 'subCategoryCode', 'name', 'brand', 'condition',
-  'model', 'sn', 'plateNo', 'location', 'building', 'notes', 'value'];
+// Same props as public/fields.js (ASSET_FIELDS); tests/static.test.mjs checks they match.
+const FIELDS = ['oldTag', 'category', 'catCode', 'subCategory', 'subCategoryCode', 'name', 'brand', 'model', 'sn',
+  'year', 'qty', 'condition', 'opStatus', 'region', 'city', 'buildingName', 'building', 'floor', 'location',
+  'roomNotes', 'department', 'employee', 'plateNo', 'value', 'notes'];
 
 const str = (v, n) => String(v ?? '').slice(0, n);
 
 function cleanAsset(a) {
   if (!a || typeof a.uid !== 'string' || !/^[A-Za-z0-9-]{8,64}$/.test(a.uid)) return null;
   const data = {};
-  for (const f of FIELDS) if (a.data?.[f] != null && a.data[f] !== '') data[f] = str(a.data[f], f === 'name' ? 300 : 200);
+  for (const f of FIELDS) if (a.data?.[f] != null && a.data[f] !== '') data[f] = str(a.data[f], f === 'name' || f === 'notes' || f === 'roomNotes' ? 300 : 200);
   if (a.data?.deleteFlag?.reason) {
     data.deleteFlag = { reason: str(a.data.deleteFlag.reason, 200), at: Number(a.data.deleteFlag.at) || Date.now() };
   }
